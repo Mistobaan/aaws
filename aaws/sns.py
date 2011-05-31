@@ -49,7 +49,7 @@ class SNS(AWSService):
 			AWSAccountIdActions -- The AWS account IDs of the users (principals) who will be
 					given access to the specified actions. The users must have AWS accounts, but
 					do not need to be signed up for this service.
-					NOTE: ActionName is the name of a method (e.g. Publish) this accountid may call.
+					NOTE: ActionName is the name of a method (e.g. publish) this accountid may call.
 				Type: List of tuples of (AWSAccountId:String, ActionName:String)
 				Required: Yes
 
@@ -77,7 +77,7 @@ class SNS(AWSService):
 
 	def ConfirmSubscription(self, TopicArn, Token, AuthenticateOnUnsubscribe=None):
 		"""The ConfirmSubscription action verifies an endpoint owner's intent to receive messages
-			by validating the token sent to the endpoint by an earlier Subscribe action. If the
+			by validating the token sent to the endpoint by an earlier subscribe action. If the
 			token is valid, the action creates a new subscription and returns its Amazon Resource
 			Name (ARN). This call requires an AWS signature only when the AuthenticateOnUnsubscribe
 			flag is set to "true".
@@ -86,7 +86,7 @@ class SNS(AWSService):
 				Type: String
 				Required: Yes
 
-			Token -- Short-lived token sent to an endpoint during the Subscribe action.
+			Token -- Short-lived token sent to an endpoint during the subscribe action.
 				Type: String
 				Required: Yes
 
@@ -94,7 +94,7 @@ class SNS(AWSService):
 					unsubsciption of the subscription. If parameter is present in the request, the
 					request has an AWS signature, and the value of this parameter is true, only the
 					topic owner and the subscription owner will be permitted to unsubscribe the
-					endpoint, and the Unsubscribe action will require AWS authentication.
+					endpoint, and the unsubscribe action will require AWS authentication.
 				Type: String
 				Required: No
 
@@ -169,7 +169,7 @@ class SNS(AWSService):
 			raise AWSError(status, reason, data)
 
 		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'DeleteTopic', {
-			'Name': Name,
+			'TopicArn': TopicArn,
 		}, response)
 		return r
 
@@ -522,4 +522,33 @@ if __name__ == '__main__':
 	sns = SNS('us-west-1', key, secret)
 	topics, token = sns.ListTopics().GET()
 	print topics
+	subs, token = sns.ListSubscriptionsByTopic(topics[0]).GET()
+	print subs
+	attrib = sns.GetTopicAttributes(topics[0]).GET()
+	print repr(attrib)
+	subs, token = sns.ListSubscriptions().GET()
+	print subs
+
+	import sys
+	if len(sys.argv) >= 2:
+		email = sys.argv[1]
+		topicArn = sns.CreateTopic('test').GET()
+		print 'Created', topicArn
+		attrib = sns.GetTopicAttributes(topicArn).GET()
+		print 'Attribs', attrib
+		if email == 'publish':
+			messageId = sns.Publish(topicArn, 'Hello world').GET()
+			print 'Published', messageId
+		else:
+			subArn = sns.Subscribe(topicArn, email, 'email').GET()
+			print 'Subscribed', subArn
+	else:
+		topicArn = sns.CreateTopic('test').GET()
+		subs, token = sns.ListSubscriptionsByTopic(topics[0]).GET()
+		print 'Subs', subs
+		sns.Unsubscribe(subs[0]['SubscriptionArn']).GET()
+		subs, token = sns.ListSubscriptionsByTopic(topics[0]).GET()
+		print 'Subs (after Unsubscribe)', subs
+		sns.DeleteTopic(topicArn).GET()
+		print 'Deleted', topicArn
 
