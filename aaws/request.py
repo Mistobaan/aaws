@@ -94,10 +94,22 @@ class AWSRequest(asyncore.dispatcher_with_send):
 		self._uri = uri
 		self._key = key
 		self._secret = secret
-		self._parameters = parameters
+		self._parameters = {}
+		for key, value in parameters.items():
+			if value is not None:
+				self._parameters[key] = str(value)
 		self._action = action
 		if handler is not None:
 			self.handle = handler
+
+	def addParm(self, name, value):
+		if value is not None:
+			if value == True:
+				self._parameters[name] = 'true'
+			elif value == False:
+				self._parameters[name] = 'false'
+			else:
+				self._parameters[name] = str(value)
 
 	def handle(self, status, reason, data):
 		print 'Default Handler: %r %r %r' % (status, reason, data)
