@@ -20,37 +20,52 @@
 from aws import AWSService, AWSError, getBotoCredentials
 import uuid
 import json
+from urlparse import urlparse
 
 
 def SubscribeQueue(sqs, sns, queueName, topicName):
 	queue = sqs.CreateQueue(queueName).GET()
 	topic = sns.CreateTopic(topicName).GET()
+	p = urlparse(queue)
 	attr = sqs.GetQueueAttributes(queue, ['QueueArn', 'Policy']).GET()
-	print 'attr', attr
-	if attr.get('policy'):
-		json.loads(attr['policy'])
-		# XXX: check
-		pass
+	if attr.get('Policy'):
+		policy = json.loads(attr['Policy'])
+#		print 'existing policy', repr(policy)
+		statements = policy['Statement']
+		if not isinstance(statements, list):
+			statements = [statements]
+		for statement in statements:
+			if statement.get('Sid') == 'allow%s' % topicName:
+				break		# we've already set an allow
+		else:
+			statements.append({
+					'Action': 'sqs:*',
+					'Effect': 'Allow',
+					'Principal': {'AWS' : '*'},
+					'Resource': p.path,
+					'Sid': 'allow%s' % topicName,
+					'Condition': {'StringEquals': {'aws:SourceArn': topic}},
+				})
+			policy['Statement'] = statements
+#			print 'new policy', repr(policy)
+			sqs.SetQueueAttributes(queue, 'Policy', json.dumps(policy)).GET()
 	else:
 		policy = {
 			'Version': '2008-10-17',
 			'Id': str(uuid.uuid4()),
-			'Statement': [
-				{
+			'Statement': {
 					'Action': 'sqs:*',
 					'Effect': 'Allow',
 					'Principal': {'AWS' : '*'},
-					'Resource': attr['QueueArn'],
+					'Resource': p.path,
 					'Sid': 'allow%s' % topicName,
-					'Condition': {'StringLike': {'aws:SourceArn': topic}},
-				}
-			],
+					'Condition': {'StringEquals': {'aws:SourceArn': topic}},
+				},
 		}
-		print repr(policy)
+#		print 'new policy', repr(policy)
 		sqs.SetQueueAttributes(queue, 'Policy', json.dumps(policy)).GET()
-	print topic, 'sqs', attr['QueueArn']
-	sns.Subscribe(topic, 'sqs', attr['QueueArn']).GET()
-	return queue, topic
+	subscriptionArn = sns.Subscribe(topic, 'sqs', attr['QueueArn']).GET()
+	return queue, topic, subscriptionArn
 
 
 if __name__ == '__main__':

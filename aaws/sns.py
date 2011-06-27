@@ -39,24 +39,18 @@ class SNS(AWSService):
 		self._key = key
 		self._secret = secret
 
-	def AddPermission(self, TopicArn, AWSAccountIdActions, Label):
+
+	def AddPermission(self, TopicArn, Permissions, Label):
 		"""The AddPermission action adds a statement to a topic's access control policy,
 			granting access for the specified AWS accounts to the specified actions.
 
 			TopicArn -- The ARN of the topic whose access control policy you wish to modify.
-				Type: String
-				Required: Yes
-
-			AWSAccountIdActions -- The AWS account IDs of the users (principals) who will be
-					given access to the specified actions. The users must have AWS accounts, but
-					do not need to be signed up for this service.
-					NOTE: ActionName is the name of a method (e.g. publish) this accountid may call.
-				Type: List of tuples of (AWSAccountId:String, ActionName:String)
-				Required: Yes
-
+			Permissions -- Either a dict or an iterable of tuples of the form (AWSAccountId, ActionName)
+				AWSAccountId - An AWS account ID of the user (principal) who will be
+					given access to the specified actions. The user must have an AWS account, but
+					does not need to be signed up for this service.
+				ActionName - the name of a method (e.g. publish) this accountid may call.
 			Label -- A unique identifier for the new policy statement.
-				Type: String
-				Required: Yes
 
 			Returns -- True if HTTP request succeeds
 			"""
@@ -70,9 +64,11 @@ class SNS(AWSService):
 			'TopicArn': TopicArn,
 			'Label': Label,
 		}, response)
-		for idx, (accountid, action) in enumerate(AWSAccountIdActions):
-			r._parameters['AWSAccountId.member.%d' % (idx + 1)] = accountid
-			r._parameters['ActionName.member.%d' % (idx + 1)] = action
+		if hasattr(Permissions, 'items'):
+			Permissions = Permissions.items()
+		for idx, (accountid, action) in enumerate(Permissions):
+			r.addParm('AWSAccountId.member.%d' % (idx + 1), accountid)
+			r.addParm('ActionName.member.%d' % (idx + 1), action)
 		return r
 
 
@@ -442,7 +438,7 @@ class SNS(AWSService):
 		}, response)
 
 
-	def Subscribe(self, TopicArn, Endpoint, Protocol):
+	def Subscribe(self, TopicArn, Protocol, Endpoint):
 		"""The Subscribe action prepares to subscribe an endpoint by sending the endpoint a confirmation
 			message. To actually create a subscription, the endpoint owner must call the ConfirmSubscription
 			action with the token from the confirmation message. Confirmation tokens are valid for three days.
