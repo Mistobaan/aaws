@@ -31,6 +31,7 @@ class SNS(AWSService):
 		'ap-southeast-1': 'sns.ap-southeast-1.amazonaws.com',
 		'ap-northeast-1': 'sns.ap-northeast-1.amazonaws.com',
 	}
+	xmlns = 'http://sns.amazonaws.com/doc/2010-03-31/'
 
 	def __init__(self, region, key, secret):
 		self._region = region
@@ -477,18 +478,17 @@ class SNS(AWSService):
 		def response(status, reason, data):
 			if status == 200:
 				root = ET.fromstring(data)
-				node = root.find('.//{http://sns.amazonaws.com/doc/2010-03-31/}SubscriptionArn')
+				node = root.find('.//{%s}SubscriptionArn' % self.xmlns)
 				if node is not None:
 					return node.text
 				return None
 			raise AWSError(status, reason, data)
 
-		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'Subscribe', {
+		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'Subscribe', {
 			'TopicArn': TopicArn,
 			'Endpoint': Endpoint,
 			'Protocol': Protocol,
 		}, response)
-		return r
 
 
 	def Unsubscribe(self, SubscriptionArn):

@@ -225,7 +225,7 @@ class SQS(AWSService):
 			When you create a queue, you have full control access rights for the queue. Only you (as owner of the queue) can grant or deny
 			permissions to the queue. For more information about these permissions, see Shared Queues in the Amazon SQS Developer Guide.
 
-			NOTE: addPermission writes an SQS-generated policy. If you want to write your own policy, use SetQueueAttributes to upload your policy.
+			NOTE: addPermission writes an SQS-generated policy. If you want to write your own policy, use setQueueAttributes to upload your policy.
 			For more information about writing your own policy, see Appendix: The Access Policy Language in the Amazon SQS Developer Guide.
 
 			Label -- The unique identification of the permission you're setting (a string).
@@ -360,7 +360,7 @@ class SQS(AWSService):
 
 
 	def SetQueueAttributes(self, queueUrl, AttributeName, AttributeValue):
-		"""The SetQueueAttributes action sets one attribute of a queue per request. When you change a queue's attributes,
+		"""The setQueueAttributes action sets one attribute of a queue per request. When you change a queue's attributes,
 			the change can take up to 60 seconds to propagate throughout the SQS system.
 
 			AttributeName -- The name of the attribute you want to set. One of:
@@ -390,8 +390,8 @@ class SQS(AWSService):
 		p = urlparse(queueUrl)
 		return request.AWSRequest(self._endpoint, p.path, self._key, self._secret, 'SetQueueAttributes', {
 			'Version': self.version,
-			'AttributeName': AttributeName,
-			'AttributeValue': AttributeValue,
+			'Attribute.Name': AttributeName,
+			'Attribute.Value': AttributeValue,
 		}, response)
 
 

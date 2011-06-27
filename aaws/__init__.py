@@ -20,4 +20,5 @@
 from request import AWSRequestManager, AWSRequest
 from aws import AWSService, AWSError, getBotoCredentials
 from sqs import SQS
+import util
 
