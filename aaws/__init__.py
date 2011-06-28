@@ -20,5 +20,7 @@
 from request import AWSRequestManager, AWSRequest
 from aws import AWSService, AWSError, getBotoCredentials
 from sqs import SQS
+from sns import SNS
+from simpledb import SimpleDB
 import util
 

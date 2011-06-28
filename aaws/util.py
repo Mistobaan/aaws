@@ -72,6 +72,7 @@ if __name__ == '__main__':
 	import sys
 	from sqs import SQS
 	from sns import SNS
+	import time
 
 	key, secret = getBotoCredentials()
 	sqs = SQS('us-west-1', key, secret)
@@ -85,4 +86,13 @@ if __name__ == '__main__':
 		print sns.DeleteTopic(topic).GET()
 	if 'subscribeq' in sys.argv:
 		SubscribeQueue(sqs, sns, 'testSubscribeQ', 'testSubscribeT')
+	if 'roundtrip' in sys.argv:
+		queue, topic, _ = SubscribeQueue(sqs, sns, 'testSubscribeQ', 'testSubscribeT')
+		time.sleep(2.0)
+		sns.Publish(topic, 'Test message').GET()
+		time.sleep(2.0)
+		msgs = sqs.ReceiveMessage(queue, AttributeNames=['All'], MaxNumberOfMessages=2).GET()
+		print repr(msgs)
+		for msg in msgs:
+			print sqs.DeleteMessage(queue, msg['ReceiptHandle']).GET()
 
