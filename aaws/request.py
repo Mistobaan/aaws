@@ -26,6 +26,16 @@
 #
 #
 
+# XXX: improve error handling (for retries, etc):
+# e.g.
+#    raise AWSError(status, reason, data)
+#aaws.aws.AWSError: (503 Service Unavailable)
+#<?xml version="1.0"?>
+#<Response><Errors><Error><Code>ServiceUnavailable</Code>
+#<Message>Service AmazonSimpleDB is currently unavailable. Please try again later</Message></Error></Errors>
+#<RequestID>637e5d3f-e869-57a0-0d69-9e2023a39ca3</RequestID></Response>
+
+
 import urllib
 import hmac
 import hashlib
@@ -218,3 +228,4 @@ if __name__ == '__main__':
 		print req.result
 	for req in b:
 		print 'Fail', req.result
+

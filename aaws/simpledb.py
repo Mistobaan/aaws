@@ -424,7 +424,7 @@ class SimpleDB(AWSService):
 		return r
 
 
-	def Select(self, SelectExpression, NextToken=None, ConsistentRead=None):
+	def Select(self, SelectExpression, NextToken=None, ConsistentRead=None, boxusage=None):
 		"""The Select operation returns a set of Attributes for ItemNames that match the select expression. Select is
 			similar to the standard SQL SELECT statement.
 
@@ -462,6 +462,8 @@ class SimpleDB(AWSService):
 			if status == 200:
 #				print data
 				root = ET.fromstring(data)
+				if boxusage is not None:
+					boxusage.append(root.find('.//{%s}BoxUsage' % self.xmlns).text)
 				items = []
 				for node in root.findall('.//{%s}Item' % self.xmlns):
 					name = node.find('{%s}Name' % self.xmlns).text
