@@ -205,7 +205,7 @@ class SNS(AWSService):
 
 
 	def _Response_ListSubscriptions(self, status, reason, data):
-		"""Response handler for ListSubscriptions, and ListSubscriptionsByTopic"""
+		"""Response handler for listSubscriptions, and listSubscriptionsByTopic"""
 		def findadd(m, node, attr):
 			node = node.find('{%s}%s' % (self.xmlns, attr))
 			if node is not None:
@@ -249,7 +249,7 @@ class SNS(AWSService):
 			"""
 
 		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'ListSubscriptions', {
-				'NextToken', NextToken,
+				'NextToken': NextToken,
 			}, self._Response_ListSubscriptions, request.ListFollow)
 
 
@@ -511,13 +511,13 @@ class SNS(AWSService):
 if __name__ == '__main__':
 	key, secret = getBotoCredentials()
 	sns = SNS('us-west-1', key, secret)
-	topics, token = sns.ListTopics().GET()
+	topics = sns.ListTopics().GET()
 	print topics
-	subs, token = sns.ListSubscriptionsByTopic(topics[0]).GET()
+	subs = sns.ListSubscriptionsByTopic(topics[0]).GET()
 	print subs
 	attrib = sns.GetTopicAttributes(topics[0]).GET()
 	print repr(attrib)
-	subs, token = sns.ListSubscriptions().GET()
+	subs = sns.ListSubscriptions().GET()
 	print subs
 
 	import sys
@@ -531,14 +531,14 @@ if __name__ == '__main__':
 			messageId = sns.Publish(topicArn, 'Hello world').GET()
 			print 'Published', messageId
 		else:
-			subArn = sns.Subscribe(topicArn, email, 'email').GET()
+			subArn = sns.Subscribe(topicArn, 'email', email).GET()
 			print 'Subscribed', subArn
 	else:
 		topicArn = sns.CreateTopic('test').GET()
-		subs, token = sns.ListSubscriptionsByTopic(topics[0]).GET()
+		subs = sns.ListSubscriptionsByTopic(topicArn).GET()
 		print 'Subs', subs
 		sns.Unsubscribe(subs[0]['SubscriptionArn']).GET()
-		subs, token = sns.ListSubscriptionsByTopic(topics[0]).GET()
+		subs = sns.ListSubscriptionsByTopic(topics[0]).GET()
 		print 'Subs (after Unsubscribe)', subs
 		sns.DeleteTopic(topicArn).GET()
 		print 'Deleted', topicArn

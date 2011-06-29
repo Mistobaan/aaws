@@ -196,8 +196,9 @@ class AWSRequest(asyncore.dispatcher_with_send):
 				else:
 					return result
 			except aws.AWSError:
-				if retries-- <= 0:
+				if retries <= 0:
 					raise		# out of retries
+				retries -= 1
 
 	def POST(self):
 		raise NotImplementedError
