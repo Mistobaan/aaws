@@ -71,9 +71,9 @@ class SimpleDB(AWSService):
 				return True
 			raise AWSError(status, reason, data)
 		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'BatchDeleteAttributes', {
-			'DomainName': DomainName,
-			'Version': self.version,
-		}, response)
+				'DomainName': DomainName,
+				'Version': self.version,
+			}, response)
 		if hasattr(Items, 'items'):
 			Items = Items.items()
 		for itemIdx, (name, attributes) in enumerate(Items):
@@ -137,9 +137,9 @@ class SimpleDB(AWSService):
 				return True
 			raise AWSError(status, reason, data)
 		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'BatchPutAttributes', {
-			'DomainName': DomainName,
-			'Version': self.version,
-		}, response)
+				'DomainName': DomainName,
+				'Version': self.version,
+			}, response)
 		if hasattr(Items, 'items'):
 			Items = Items.items()
 		for itemIdx, (name, attributes) in enumerate(Items):
@@ -174,9 +174,9 @@ class SimpleDB(AWSService):
 				return True
 			raise AWSError(status, reason, data)
 		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'CreateDomain', {
-			'DomainName': DomainName,
-			'Version': self.version,
-		}, response)
+				'DomainName': DomainName,
+				'Version': self.version,
+			}, response)
 
 
 	def DeleteAttributes(self, DomainName, ItemName, Attributes=None, Expected=None):
@@ -210,10 +210,10 @@ class SimpleDB(AWSService):
 				return True
 			raise AWSError(status, reason, data)
 		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'DeleteAttributes', {
-			'DomainName': DomainName,
-			'ItemName': ItemName,
-			'Version': self.version,
-		}, response)
+				'DomainName': DomainName,
+				'ItemName': ItemName,
+				'Version': self.version,
+			}, response)
 		if Attributes is not None:
 			if hasattr(Attributes, 'items'):
 				Attributes = Attributes.items()
@@ -250,9 +250,9 @@ class SimpleDB(AWSService):
 				return True
 			raise AWSError(status, reason, data)
 		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'DeleteDomain', {
-			'DomainName': DomainName,
-			'Version': self.version,
-		}, response)
+				'DomainName': DomainName,
+				'Version': self.version,
+			}, response)
 
 
 	def DomainMetadata(self, DomainName):
@@ -275,9 +275,9 @@ class SimpleDB(AWSService):
 				return metadata
 			raise AWSError(status, reason, data)
 		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'DomainMetadata', {
-			'DomainName': DomainName,
-			'Version': self.version,
-		}, response)
+				'DomainName': DomainName,
+				'Version': self.version,
+			}, response)
 
 
 	def GetAttributes(self, DomainName, ItemName, AttributeNames=None, ConsistentRead=None):
@@ -309,11 +309,11 @@ class SimpleDB(AWSService):
 				return attribs
 			raise AWSError(status, reason, data)
 		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'GetAttributes', {
-			'DomainName': DomainName,
-			'ItemName': ItemName,
-			'ConsistentRead': ConsistentRead,
-			'Version': self.version,
-		}, response)
+				'DomainName': DomainName,
+				'ItemName': ItemName,
+				'ConsistentRead': ConsistentRead,
+				'Version': self.version,
+			}, response)
 		if AttributeNames is not None:
 			for idx, name in enumerate(AttributeNames):
 				r.addParm('AttributeName.%d' % idx, name)
@@ -347,10 +347,10 @@ class SimpleDB(AWSService):
 				return domains, token
 			raise AWSError(status, reason, data)
 		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'ListDomains', {
-			'MaxDomains': MaxDomains,
-			'NextToken': NextToken,
-			'Version': self.version,
-		}, response)
+				'MaxDomains': MaxDomains,
+				'NextToken': NextToken,
+				'Version': self.version,
+			}, response, request.ListFollow)
 
 
 	def PutAttributes(self, DomainName, ItemName, Attributes, Expected=None, replace=True):
@@ -401,10 +401,10 @@ class SimpleDB(AWSService):
 				return True
 			raise AWSError(status, reason, data)
 		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'PutAttributes', {
-			'DomainName': DomainName,
-			'ItemName': ItemName,
-			'Version': self.version,
-		}, response)
+				'DomainName': DomainName,
+				'ItemName': ItemName,
+				'Version': self.version,
+			}, response)
 		if hasattr(Attributes, 'items'):
 			Attributes = [(name, value, replace) for name, value in Attributes.items()]
 		for idx, (name, value, replace) in enumerate(Attributes):
@@ -471,15 +471,19 @@ class SimpleDB(AWSService):
 					for attr in node.findall('{%s}Attribute' % self.xmlns):
 						attribs.append((attr.find('{%s}Name' % self.xmlns).text, attr.find('{%s}Value' % self.xmlns).text))
 					items.append((name, attribs))
-				return items
+				token = None
+				node = root.find('.//{%s}NextToken')
+				if node is not None:
+					token = node.text
+				return items, token
 			raise AWSError(status, reason, data)
 
 		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'Select', {
-			'SelectExpression': SelectExpression,
-			'NextToken': NextToken,
-			'ConsistentRead': ConsistentRead,
-			'Version': self.version,
-		}, response)
+				'SelectExpression': SelectExpression,
+				'NextToken': NextToken,
+				'ConsistentRead': ConsistentRead,
+				'Version': self.version,
+			}, response, request.ListFollow)
 
 
 

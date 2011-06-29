@@ -61,9 +61,9 @@ class SNS(AWSService):
 			raise AWSError(status, reason, data)
 
 		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'AddPermission', {
-			'TopicArn': TopicArn,
-			'Label': Label,
-		}, response)
+				'TopicArn': TopicArn,
+				'Label': Label,
+			}, response)
 		if hasattr(Permissions, 'items'):
 			Permissions = Permissions.items()
 		for idx, (accountid, action) in enumerate(Permissions):
@@ -109,11 +109,11 @@ class SNS(AWSService):
 			raise AWSError(status, reason, data)
 
 		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'ConfirmSubscription', {
-			'TopicArn': TopicArn,
-			'Token': Token,
-		}, response)
+				'TopicArn': TopicArn,
+				'Token': Token,
+			}, response)
 		if AuthenticateOnUnsubscribe is not None:
-			r._parameters['AuthenticateOnUnsubscribe'] = 'Yes'
+			r.addParm('AuthenticateOnUnsubscribe', 'Yes')
 		return r
 
 
@@ -137,15 +137,15 @@ class SNS(AWSService):
 		def response(status, reason, data):
 			if status == 200:
 				root = ET.fromstring(data)
-				node = root.find('.//{http://sns.amazonaws.com/doc/2010-03-31/}TopicArn')
+				node = root.find('.//{%s}TopicArn' % self.xmlns)
 				if node is not None:
 					return node.text
 			raise AWSError(status, reason, data)
 
-		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'CreateTopic', {
-			'Name': Name,
-		}, response)
-		return r
+		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'CreateTopic', {
+				'Name': Name,
+			}, response)
+
 
 	def DeleteTopic(self, TopicArn):
 		"""The DeleteTopic action deletes a topic and all its subscriptions. Deleting a topic
@@ -165,10 +165,10 @@ class SNS(AWSService):
 				return True
 			raise AWSError(status, reason, data)
 
-		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'DeleteTopic', {
-			'TopicArn': TopicArn,
-		}, response)
-		return r
+		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'DeleteTopic', {
+				'TopicArn': TopicArn,
+			}, response)
+
 
 	def GetTopicAttributes(self, TopicArn):
 		"""The GetTopicAttributes action returns all of the properties of a topic customers
@@ -192,22 +192,22 @@ class SNS(AWSService):
 			if status == 200:
 				root = ET.fromstring(data)
 				attrib = {}
-				for node in root.findall('.//{http://sns.amazonaws.com/doc/2010-03-31/}entry'):
-					name = node.find('{http://sns.amazonaws.com/doc/2010-03-31/}key')
-					val = node.find('{http://sns.amazonaws.com/doc/2010-03-31/}value')
+				for node in root.findall('.//{%s}entry' % self.xmlns):
+					name = node.find('{%s}key' % self.xmlns)
+					val = node.find('{%s}value' % self.xmlns)
 					attrib[name.text] = val.text
 				return attrib
 			raise AWSError(status, reason, data)
 
-		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'GetTopicAttributes', {
-			'TopicArn': TopicArn,
-		}, response)
-		return r
+		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'GetTopicAttributes', {
+				'TopicArn': TopicArn,
+			}, response)
 
 
 	def _Response_ListSubscriptions(self, status, reason, data):
+		"""Response handler for ListSubscriptions, and ListSubscriptionsByTopic"""
 		def findadd(m, node, attr):
-			node = node.find('{http://sns.amazonaws.com/doc/2010-03-31/}%s' % attr)
+			node = node.find('{%s}%s' % (self.xmlns, attr))
 			if node is not None:
 				m[attr] = node.text
 
@@ -215,11 +215,11 @@ class SNS(AWSService):
 		if status == 200:
 			root = ET.fromstring(data)
 			token = None
-			node = root.find('.//{http://sns.amazonaws.com/doc/2010-03-31/}NextToken')
+			node = root.find('.//{%s}NextToken' % self.xmlns)
 			if node is not None:
 				token = node.text
 			subs = []
-			for node in root.findall('.//{http://sns.amazonaws.com/doc/2010-03-31/}member'):
+			for node in root.findall('.//{%s}member' % self.xmlns):
 				sub = {}
 				findadd(sub, node, 'TopicArn')
 				findadd(sub, node, 'Protocol')
@@ -229,6 +229,7 @@ class SNS(AWSService):
 				subs.append(sub)
 			return subs, token
 		raise AWSError(status, reason, data)
+
 
 	def ListSubscriptions(self, NextToken=None):
 		"""The ListSubscriptions action returns a list of the requester's subscriptions. Each
@@ -247,10 +248,9 @@ class SNS(AWSService):
 					TopicArn, Protocol, SubscriptionArn, Owner, Endpoint
 			"""
 
-		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'ListSubscriptions', {}, self._Response_ListSubscriptions)
-		if NextToken is not None:
-			r._parameters['NextToken'] = NextToken
-		return r
+		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'ListSubscriptions', {
+				'NextToken', NextToken,
+			}, self._Response_ListSubscriptions, request.ListFollow)
 
 
 	def ListSubscriptionsByTopic(self, TopicArn, NextToken=None):
@@ -274,12 +274,11 @@ class SNS(AWSService):
 					TopicArn, Protocol, SubscriptionArn, Owner, Endpoint
 			"""
 
-		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'ListSubscriptionsByTopic', {
-			'TopicArn': TopicArn,
-		}, self._Response_ListSubscriptions)
-		if NextToken is not None:
-			r._parameters['NextToken'] = NextToken
-		return r
+		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'ListSubscriptionsByTopic', {
+				'TopicArn': TopicArn,
+				'NextToken': NextToken,
+			}, self._Response_ListSubscriptions, request.ListFollow)
+
 
 	def ListTopics(self, NextToken=None):
 		"""The ListTopics action returns a list of the requester's topics. Each call returns a
@@ -300,19 +299,19 @@ class SNS(AWSService):
 			if status == 200:
 				root = ET.fromstring(data)
 				token = None
-				node = root.find('.//{http://sns.amazonaws.com/doc/2010-03-31/}NextToken')
+				node = root.find('.//{%s}NextToken' % self.xmlns)
 				if node is not None:
 					token = node.text
 				topics = []
-				for node in root.findall('.//{http://sns.amazonaws.com/doc/2010-03-31/}TopicArn'):
+				for node in root.findall('.//{%s}TopicArn' % self.xmlns):
 					topics.append(node.text)
 				return topics, token
 			raise AWSError(status, reason, data)
 
-		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'ListTopics', {}, response)
-		if NextToken is not None:
-			r._parameters['NextToken'] = NextToken
-		return r
+		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'ListTopics', {
+				'NextToken': NextToken,
+			}, response, request.ListFollow)
+
 
 	def Publish(self, TopicArn, Message, Subject=None, MessageStructure=None):
 		"""The Publish action sends a message to all of a topic's subscribed endpoints. When a
@@ -364,20 +363,17 @@ class SNS(AWSService):
 		def response(status, reason, data):
 			if status == 200:
 				root = ET.fromstring(data)
-				node = root.find('.//{http://sns.amazonaws.com/doc/2010-03-31/}MessageId')
+				node = root.find('.//{%s}MessageId' % self.xmlns)
 				if node is not None:
 					return node.text
 			raise AWSError(status, reason, data)
 
-		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'Publish', {
-			'TopicArn': TopicArn,
-			'Message': Message,
-		}, response)
-		if MessageStructure is not None:
-			r._parameters['MessageStructure'] = MessageStructure
-		if Subject is not None:
-			r._parameters['Subject'] = Subject
-		return r
+		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'Publish', {
+				'TopicArn': TopicArn,
+				'Message': Message,
+				'MessageStructure': MessageStructure,
+				'Subject': Subject,
+			}, response)
 
 
 	def RemovePermission(self, TopicArn, Label):
@@ -399,10 +395,10 @@ class SNS(AWSService):
 				return True
 			raise AWSError(status, reason, data)
 
-		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'RemovePermission', {
-			'TopicArn': TopicArn,
-			'Label': Label,
-		}, response)
+		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'RemovePermission', {
+				'TopicArn': TopicArn,
+				'Label': Label,
+			}, response)
 
 
 	def SetTopicAttributes(self, TopicArn, AttributeName, AttributeValue):
@@ -431,11 +427,11 @@ class SNS(AWSService):
 				return True
 			raise AWSError(status, reason, data)
 
-		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'SetTopicAttributes', {
-			'TopicArn': TopicArn,
-			'AttributeName': AttributeName,
-			'AttributeValue': AttributeValue,
-		}, response)
+		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'SetTopicAttributes', {
+				'TopicArn': TopicArn,
+				'AttributeName': AttributeName,
+				'AttributeValue': AttributeValue,
+			}, response)
 
 
 	def Subscribe(self, TopicArn, Protocol, Endpoint):
@@ -481,10 +477,10 @@ class SNS(AWSService):
 			raise AWSError(status, reason, data)
 
 		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'Subscribe', {
-			'TopicArn': TopicArn,
-			'Endpoint': Endpoint,
-			'Protocol': Protocol,
-		}, response)
+				'TopicArn': TopicArn,
+				'Endpoint': Endpoint,
+				'Protocol': Protocol,
+			}, response)
 
 
 	def Unsubscribe(self, SubscriptionArn):
@@ -507,10 +503,9 @@ class SNS(AWSService):
 				return True
 			raise AWSError(status, reason, data)
 
-		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'Unsubscribe', {
-			'SubscriptionArn': SubscriptionArn,
-		}, response)
-		return r
+		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'Unsubscribe', {
+				'SubscriptionArn': SubscriptionArn,
+			}, response)
 
 
 if __name__ == '__main__':

@@ -112,9 +112,25 @@ class AWSRequestManager(object):
 		raise AWSCompoundError(errors)
 
 
+def ListFollow(req, result, acc):
+	"""This is a follower that expects a result in the form (list_of_things, NextToken).
+		If NextToken is not None then we return a copied request with the NextToken parameter set
+		to the returned NextToken, and accumulate the list_of_things.
+		"""
+	if acc is None:
+		acc = []
+	items, token = result
+	acc.extend(items)
+	if token is not None:
+		nextreq = req.copy()
+		nextreq.setParm('NextToken', token)
+		return nextreq, acc
+	return None, acc
+
+
 class AWSRequest(asyncore.dispatcher_with_send):
 
-	def __init__(self, host, uri, key, secret, action, parameters, handler=None):
+	def __init__(self, host, uri, key, secret, action, parameters, handler=None, follower=None):
 		asyncore.dispatcher_with_send.__init__(self)
 
 		self._host = host
@@ -128,6 +144,11 @@ class AWSRequest(asyncore.dispatcher_with_send):
 		self._action = action
 		if handler is not None:
 			self.handle = handler
+		if follower is not None:
+			self.follow = follower
+
+	def copy(self):
+		return AWSRequest(self._host, self._uri, self._key, self._secret, self._action, self._parameters, self.handle)
 
 	def addParm(self, name, value):
 		if value is not None:
@@ -138,22 +159,45 @@ class AWSRequest(asyncore.dispatcher_with_send):
 			else:
 				self._parameters[name] = str(value)
 
+	def setParm(self, name, value):
+		if name in self._parameters:
+			self._parameters.pop(name)
+		self.addParm(name, value)
+
 	def handle(self, status, reason, data):
 		print 'Default Handler: %r %r %r' % (status, reason, data)
 		return data
 
+	def follow(self, request, result, accumulator):
+		# Default follow handler does not follow (We can't assume a NextToken)
+		return None, result
+
 	# Sync methods
-	def GET(self, retries=5):
-		for attempt in range(retries):
+	def _attemptReq(self, req):
+		conn = httplib.HTTPConnection(req._host)
+		conn.request('GET', req.makePath())
+		resp = conn.getresponse()
+		return resp.status, resp.reason, resp.read()
+
+	def GET(self, retries=5, follow=10):
+		nFollow = follow
+		current = self
+		accumulator = None
+		while True:
 			try:
-				conn = httplib.HTTPConnection(self._host)
-				conn.request('GET', self.makePath())
-				resp = conn.getresponse()
-				data = resp.read()
-				return self.handle(resp.status, resp.reason, data)
+				status, reason, data = self._attemptReq(current)
+				result = self.handle(status, reason, data)
+				if follow:
+					current, accumulator = self.follow(current, result, accumulator)
+					if current is None:
+						return accumulator
+					if --nFollow <= 0:
+						raise aws.AWSError(-1, 'Number of follows exceeded', data)
+				else:
+					return result
 			except aws.AWSError:
-				if attempt == (retries - 1):	# final attempt
-					raise
+				if retries-- <= 0:
+					raise		# out of retries
 
 	def POST(self):
 		raise NotImplementedError
