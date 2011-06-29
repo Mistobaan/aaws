@@ -47,6 +47,7 @@ import StringIO
 import mimetools
 import socket
 import sys
+import aws
 
 
 def compact_traceback():
@@ -69,6 +70,9 @@ def compact_traceback():
 class AWSRequestManager(object):
 
 	def __init__(self):
+		self.clear()
+
+	def clear(self):
 		self._map = {}
 		self._incomplete = []
 		self._good = []
@@ -93,6 +97,19 @@ class AWSRequestManager(object):
 		asyncore.loop(map=self._map)
 		return self._good, self._bad, self._incomplete
 
+	def execute(self, retries=5):
+		done = []
+		errors = []
+		for _ in range(retries):
+			g, b, i = self.run()
+			done.extend(g)
+			if len(b) == 0 and len(i) == 0:
+				return done
+			self.clear()
+			for req in b + i:
+				self.add(req)
+				errors.append(req.result)
+		raise AWSCompoundError(errors)
 
 
 class AWSRequest(asyncore.dispatcher_with_send):
@@ -126,12 +143,17 @@ class AWSRequest(asyncore.dispatcher_with_send):
 		return data
 
 	# Sync methods
-	def GET(self):
-		conn = httplib.HTTPConnection(self._host)
-		conn.request('GET', self.makePath())
-		resp = conn.getresponse()
-		data = resp.read()
-		return self.handle(resp.status, resp.reason, data)
+	def GET(self, retries=5):
+		for attempt in range(retries):
+			try:
+				conn = httplib.HTTPConnection(self._host)
+				conn.request('GET', self.makePath())
+				resp = conn.getresponse()
+				data = resp.read()
+				return self.handle(resp.status, resp.reason, data)
+			except aws.AWSError:
+				if attempt == (retries - 1):	# final attempt
+					raise
 
 	def POST(self):
 		raise NotImplementedError
