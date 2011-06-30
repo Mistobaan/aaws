@@ -48,6 +48,7 @@ import mimetools
 import socket
 import sys
 import aws
+import proxy
 
 
 def compact_traceback():
@@ -81,6 +82,9 @@ class AWSRequestManager(object):
 	def add(self, request):
 		request.GETAsync(self, self._map)
 		self._incomplete.append(request)
+
+	def addService(self, name, service):
+		setattr(self, name, proxy.ManagerProxy(service))
 
 	def reqComplete(self, request, success, result):
 		if request in self._incomplete:
