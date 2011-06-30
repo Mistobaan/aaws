@@ -509,16 +509,20 @@ class SNS(AWSService):
 
 
 if __name__ == '__main__':
+	import proxy
+
 	key, secret = getBotoCredentials()
-	sns = SNS('us-west-1', key, secret)
-	topics = sns.ListTopics().GET()
+	sns = proxy.GETProxy(SNS('us-west-1', key, secret))
+	topics = sns.ListTopics()
 	print topics
-	subs = sns.ListSubscriptionsByTopic(topics[0]).GET()
+	subs = sns.ListSubscriptionsByTopic(topics[0])
 	print subs
-	attrib = sns.GetTopicAttributes(topics[0]).GET()
+	attrib = sns.GetTopicAttributes(topics[0])
 	print repr(attrib)
-	subs = sns.ListSubscriptions().GET()
+	subs = sns.ListSubscriptions()
 	print subs
+
+	raise SystemExit
 
 	import sys
 	if len(sys.argv) >= 2:
