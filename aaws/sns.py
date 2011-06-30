@@ -237,7 +237,7 @@ class SNS(AWSService):
 			subscriptions, a NextToken is also returned. Use the NextToken parameter in a new
 			ListSubscriptions call to get further results.
 
-			NextToken -- Token returned by the previous ListTopics request.
+			NextToken -- Token returned by the previous listTopics request.
 				Type: String
 				Required: No
 
@@ -263,7 +263,7 @@ class SNS(AWSService):
 				Type: String
 				Required: Yes
 
-			NextToken -- Token returned by the previous ListTopics request.
+			NextToken -- Token returned by the previous listTopics request.
 				Type: String
 				Required: No
 

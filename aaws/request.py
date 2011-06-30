@@ -26,15 +26,6 @@
 #
 #
 
-# XXX: improve error handling (for retries, etc):
-# e.g.
-#    raise AWSError(status, reason, data)
-#aaws.aws.AWSError: (503 Service Unavailable)
-#<?xml version="1.0"?>
-#<Response><Errors><Error><Code>ServiceUnavailable</Code>
-#<Message>Service AmazonSimpleDB is currently unavailable. Please try again later</Message></Error></Errors>
-#<RequestID>637e5d3f-e869-57a0-0d69-9e2023a39ca3</RequestID></Response>
-
 
 import urllib
 import hmac
@@ -301,7 +292,7 @@ class AWSRequest(asyncore.dispatcher_with_send):
 
 
 if __name__ == '__main__':
-	key, secret = getBotoCredentials()
+	key, secret = aws.getBotoCredentials()
 
 	if False:
 		r = AWSRequest('sqs.us-west-1.amazonaws.com', '/', key, secret)
