@@ -84,7 +84,7 @@ class AWSRequestManager(object):
 		self._incomplete.append(request)
 
 	def addService(self, name, service):
-		setattr(self, name, proxy.ManagerProxy(service))
+		setattr(self, name, proxy.ManagerProxy(self, service))
 
 	def reqComplete(self, request, success, result):
 		if request in self._incomplete:

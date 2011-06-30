@@ -52,7 +52,7 @@ class ManagerProxy(object):
 				method = getattr(self._service, methname)
 				if hasattr(method, '__call__'):
 #					print methname, method, dir(method)
-					self.proxy(methname, method)
+					self.proxy(mgr, methname, method)
 
 	def proxy(self, mgr, methname, method):
 		def thunk(*args, **kws):
