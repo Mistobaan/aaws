@@ -33,7 +33,7 @@ class SNS(AWSService):
 	}
 	xmlns = 'http://sns.amazonaws.com/doc/2010-03-31/'
 
-	def __init__(self, region, key, secret):
+	def __init__(self, region, key, secret, version=None):
 		self._region = region
 		self._endpoint = self.endpoints[region]
 		self._key = key

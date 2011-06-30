@@ -97,19 +97,48 @@ class AWSRequestManager(object):
 		asyncore.loop(map=self._map)
 		return self._good, self._bad, self._incomplete
 
-	def execute(self, retries=5):
+	def execute(self, retries=5, follow=10):
+		def byIndex(l, r):
+			return cmp(l._idx, r._idx)
 		done = []
 		errors = []
-		for _ in range(retries):
+		for idx, req in enumerate(self._incomplete):
+			if req._follows is None:
+				req._follows = follow
+			if req._retries is None:
+				req._retries = retries
+			req._current = req
+			req._idx = idx
+			req._accum = None
+		while True:
 			g, b, i = self.run()
-			done.extend(g)
-			if len(b) == 0 and len(i) == 0:
+			tofollow = []
+			if follow:
+				for req in g:
+					req._current, req._accum = req.follow(req, req.result, req._accum)
+					if req._current is None:
+						req.result = req._accum
+						done.append(req)
+					else:
+						req._follows -= 1
+						if req._follows < 0:
+							errors.append(AWSError(-1, 'follows exceeded', req))
+							raise AWSCompoundError(errors)
+						tofollow.append(req)
+			else:
+				done.extend(g)
+			if len(b) == 0 and len(i) == 0 and len(tofollow) == 0:
+				done.sort(cmp=byIndex)
 				return done
 			self.clear()
+			for req in tofollow:
+				self.add(req._current)
 			for req in b + i:
-				self.add(req)
+				self.add(req._current)
 				errors.append(req.result)
-		raise AWSCompoundError(errors)
+				req._retries -= 1
+				if req._retries < 0:
+					raise AWSCompoundError(errors)
 
 
 def ListFollow(req, result, acc):
@@ -146,6 +175,8 @@ class AWSRequest(asyncore.dispatcher_with_send):
 			self.handle = handler
 		if follower is not None:
 			self.follow = follower
+		self._follows = None
+		self._retries = None
 
 	def copy(self):
 		return AWSRequest(self._host, self._uri, self._key, self._secret, self._action, self._parameters, self.handle)

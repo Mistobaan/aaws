@@ -34,7 +34,7 @@ class SQS(AWSService):
 	version = '2009-02-01'
 	xmlns = 'http://queue.amazonaws.com/doc/2009-02-01/'
 
-	def __init__(self, region, key, secret):
+	def __init__(self, region, key, secret, version=None):
 		self._region = region
 		self._endpoint = self.endpoints[region]
 		self._key = key

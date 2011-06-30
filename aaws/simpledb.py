@@ -34,7 +34,7 @@ class SimpleDB(AWSService):
 	xmlns = 'http://sdb.amazonaws.com/doc/2009-04-15/'
 
 
-	def __init__(self, region, key, secret):
+	def __init__(self, region, key, secret, version=None):
 		self._region = region
 		self._endpoint = self.endpoints[region]
 		self._key = key
