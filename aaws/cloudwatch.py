@@ -34,7 +34,7 @@ class CloudWatch(AWSService):
 	version = '2010-08-01'
 	xmlns = 'http://monitoring.amazonaws.com/doc/2010-08-01/'
 
-	def __init__(self, region, key, secret):
+	def __init__(self, region, key, secret, version=None):
 		self._region = region
 		self._endpoint = self.endpoints[region]
 		self._key = key
@@ -58,8 +58,8 @@ class CloudWatch(AWSService):
 			raise AWSError(status, reason, data)
 
 		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'DeleteAlarms', {
-			'Version': self.version,
-		}, response)
+				'Version': self.version,
+			}, response)
 		for idx, name in enumerate(AlarmNames):
 			r.addParm('AlarmNames.member.%d' % (idx + 1), name)
 		return r
@@ -106,28 +106,29 @@ class CloudWatch(AWSService):
 
 		def response(status, reason, data):
 			if status == 200:
-				print data
+#				print data
 				root = ET.fromstring(data)
 				attrib = {}
 				for node in root.findall('.//{http://sns.amazonaws.com/doc/2010-03-31/}AlarmHistoryItem'):
 					name = node.find('{http://sns.amazonaws.com/doc/2010-03-31/}key')
 					val = node.find('{http://sns.amazonaws.com/doc/2010-03-31/}value')
 					attrib[name.text] = val.text
-				return attrib
+				token = None
+				node = root.find('.//{%s}NextToken' % self.xmlns)
+				if node is not None:
+					token = node.text
+				return attrib, token
 			raise AWSError(status, reason, data)
 
-		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'DescribeAlarmHistory', {
-			'AlarmName': AlarmName,
-			'HistoryItemType': HistoryItemType,
-			'MaxRecords': MaxRecords,
-			'NextToken': NextToken,
-			'Version': self.version,
-		}, response)
-		if StartDate is not None:
-			r.addParm()
-		if EndDate is not None:
-			r.addParm()
-		return r
+		return request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'DescribeAlarmHistory', {
+				'AlarmName': AlarmName,
+				'HistoryItemType': HistoryItemType,
+				'MaxRecords': MaxRecords,
+				'NextToken': NextToken,
+				'StartDate': StartDate,
+				'EndDate': EndDate,
+				'Version': self.version,
+			}, response, request.ListFollow)
 
 
 	def DescribeAlarms(self, ActionPrefix=None, AlarmNamePrefix=None, AlarmNames=None, MaxRecords=None, StateValue=None, NextToken=None):
@@ -210,13 +211,13 @@ class CloudWatch(AWSService):
 			raise AWSError(status, reason, data)
 
 		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'DescribeAlarms', {
-			'ActionPrefix': ActionPrefix,
-			'AlarmNamePrefix': AlarmNamePrefix,
-			'MaxRecords': MaxRecords,
-			'StateValue': StateValue,
-			'NextToken': NextToken,
-			'Version': self.version,
-		}, response)
+				'ActionPrefix': ActionPrefix,
+				'AlarmNamePrefix': AlarmNamePrefix,
+				'MaxRecords': MaxRecords,
+				'StateValue': StateValue,
+				'NextToken': NextToken,
+				'Version': self.version,
+			}, response)
 		if AlarmNames is not None:
 			for idx, name in enumerate(AlarmNames):
 				r.addParm('AlarmNames.member.%d' % (idx + 1), name)
@@ -451,8 +452,9 @@ class CloudWatch(AWSService):
 
 
 if __name__ == '__main__':
+	import proxy
 	key, secret = getBotoCredentials()
-	cw = CloudWatch('us-west-1', key, secret)
-	alarms, token = cw.DescribeAlarms().GET()
+	cw = proxy.GETProxy(CloudWatch('us-west-1', key, secret))
+	alarms = cw.DescribeAlarms()
 	print alarms
 

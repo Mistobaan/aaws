@@ -56,11 +56,32 @@ class ExampleService(AWSService):
 			}, response)
 
 
+	def ListAction(self, Elements):
+		"""listAction tests that lists pass correctly through the system
+
+			Returns -- True if HTTP request succeeds
+			"""
+
+		def response(status, reason, data):
+			if status == 200:
+				return True
+			raise AWSError(status, reason, data)
+
+		r = request.AWSRequest(self._endpoint, '/', self._key, self._secret, 'ListAction', {
+				'Version': self.version,
+			}, response)
+		for idx, e in enumerate(Elements):
+			r.addParm('Element.%d' % idx, e)
+		return r
+
+
 if __name__ == '__main__':
 	from proxy import GETProxy
 	k, s = getBotoCredentials()
 	es = GETProxy(ExampleService('localhost', k, s))
 	es.ExampleAction('Mr', 'Joe', 'Bloggs')
 	es.ExampleAction('Mrs', 'Madonna')
+	es.ListAction(['one', 'two', 'three'])
+	es.ListAction([])
 	es.ExampleAction('Bad', None)
 

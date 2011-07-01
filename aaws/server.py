@@ -93,8 +93,8 @@ class ServiceRequestHandler(BaseHTTPRequestHandler):
 
 class ServiceServer(HTTPServer):
 
-	def __init__(self, server_address, requestHandlerClass, getCredentials, errorHandler):
-		HTTPServer.__init__(self, server_address, requestHandlerClass)
+	def __init__(self, server_address, getCredentials, errorHandler, requestHandler=ServiceRequestHandler):
+		HTTPServer.__init__(self, server_address, requestHandler)
 		self._dispatch = {}
 		self._getCredentials = getCredentials
 		self._errorHandler = errorHandler
@@ -152,7 +152,7 @@ class ServiceServer(HTTPServer):
 					break
 			else:
 				return self.error(404)
-			parms = variabledecode.variable_decode(parms)
+			parms = variabledecode.variable_decode(parms, dict_char='-', list_char='.')
 			try:
 				parms = obj.schema.to_python(parms)
 				return obj.invoke(**parms)
@@ -181,6 +181,16 @@ if __name__ == '__main__':
 			print "Hello %s %s %s" % (Title, FirstName, Surname)
 			return ((200, 'OK'), '')
 
+	class ListAction(object):
+		versions = ['2011-06-30']
+
+		class schema(Schema):
+			Element = ForEach(validators.String())
+
+		def invoke(self, Element):
+			print repr(Element)
+			return ((200, 'OK'), '')
+
 	def getCredentials(accessKeyId):
 		if accessKeyId == key:
 			return secret
@@ -189,8 +199,9 @@ if __name__ == '__main__':
 	def errHandler(t, v, tbinfo):
 		print 'exception %s:%s %s' % (t, v, tbinfo)
 
-	server = ServiceServer(('', 8080), ServiceRequestHandler, getCredentials, errHandler)
+	server = ServiceServer(('', 8080), getCredentials, errHandler)
 	server.register(ExampleAction)
+	server.register(ListAction)
 
 	try:
 		print "Serving now..."
