@@ -18,7 +18,7 @@
 #
 #
 
-class GETProxy(object):
+class ServiceProxy(object):
 	_is_proxy = True
 
 	def __init__(self, service):
@@ -35,7 +35,7 @@ class GETProxy(object):
 
 	def proxy(self, methname, method):
 		def thunk(*args, **kws):
-			return method(*args, **kws).GET()
+			return method(*args, **kws).execute()
 		setattr(self, methname, thunk)
 
 

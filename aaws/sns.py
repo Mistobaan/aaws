@@ -512,7 +512,7 @@ if __name__ == '__main__':
 	import proxy
 
 	key, secret = getBotoCredentials()
-	sns = proxy.GETProxy(SNS('us-west-1', key, secret))
+	sns = proxy.ServiceProxy(SNS('us-west-1', key, secret))
 	topics = sns.ListTopics()
 	print topics
 	subs = sns.ListSubscriptionsByTopic(topics[0])

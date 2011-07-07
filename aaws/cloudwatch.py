@@ -454,7 +454,7 @@ class CloudWatch(AWSService):
 if __name__ == '__main__':
 	import proxy
 	key, secret = getBotoCredentials()
-	cw = proxy.GETProxy(CloudWatch('us-west-1', key, secret))
+	cw = proxy.ServiceProxy(CloudWatch('us-west-1', key, secret))
 	alarms = cw.DescribeAlarms()
 	print alarms
 

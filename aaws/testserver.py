@@ -76,9 +76,9 @@ class ExampleService(AWSService):
 
 
 if __name__ == '__main__':
-	from proxy import GETProxy
+	from proxy import ServiceProxy
 	k, s = getBotoCredentials()
-	es = GETProxy(ExampleService('localhost', k, s))
+	es = ServiceProxy(ExampleService('localhost', k, s))
 	es.ExampleAction('Mr', 'Joe', 'Bloggs')
 	es.ExampleAction('Mrs', 'Madonna')
 	es.ListAction(['one', 'two', 'three'])

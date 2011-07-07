@@ -71,7 +71,7 @@ class AWSRequestManager(object):
 		self._bad = []
 
 	def add(self, request):
-		request.GETAsync(self, self._map)
+		request.ExecAsync(self, self._map)
 		self._incomplete.append(request)
 
 	def addService(self, name, service):
@@ -117,8 +117,8 @@ class AWSRequestManager(object):
 					else:
 						req._follows -= 1
 						if req._follows < 0:
-							errors.append(AWSError(-1, 'follows exceeded', req))
-							raise AWSCompoundError(errors)
+							errors.append(aws.AWSError(-1, 'follows exceeded', req))
+							raise aws.AWSCompoundError(errors)
 						tofollow.append(req)
 			else:
 				done.extend(g)
@@ -133,7 +133,7 @@ class AWSRequestManager(object):
 				errors.append(req.result)
 				req._retries -= 1
 				if req._retries < 0:
-					raise AWSCompoundError(errors)
+					raise aws.AWSCompoundError(errors)
 
 
 def ListFollow(req, result, acc):
@@ -154,7 +154,7 @@ def ListFollow(req, result, acc):
 
 class AWSRequest(asyncore.dispatcher_with_send):
 
-	def __init__(self, host, uri, key, secret, action, parameters, handler=None, follower=None):
+	def __init__(self, host, uri, key, secret, action, parameters, handler=None, follower=None, verb='GET'):
 		asyncore.dispatcher_with_send.__init__(self)
 
 		self._host = host
@@ -162,6 +162,7 @@ class AWSRequest(asyncore.dispatcher_with_send):
 		self._key = key
 		self._secret = secret
 		self._parameters = {}
+		self._verb = verb
 		for key, value in parameters.items():
 			if value is not None:
 				self._parameters[key] = str(value)
@@ -199,19 +200,19 @@ class AWSRequest(asyncore.dispatcher_with_send):
 		return None, result
 
 	# Sync methods
-	def _attemptReq(self, req):
+	def _attemptReq(self, req, verb):
 		conn = httplib.HTTPConnection(req._host)
-		conn.request('GET', req.makePath())
+		conn.request(verb, req.makePath(verb), req.makeBody(), req.makeHeaders(verb))
 		resp = conn.getresponse()
 		return resp.status, resp.reason, resp.read()
 
-	def GET(self, retries=5, follow=10):
+	def _execute(self, verb, retries=5, follow=10):
 		nFollow = follow
 		current = self
 		accumulator = None
 		while True:
 			try:
-				status, reason, data = self._attemptReq(current)
+				status, reason, data = self._attemptReq(current, verb)
 				result = self.handle(status, reason, data)
 				if follow:
 					current, accumulator = self.follow(current, result, accumulator)
@@ -226,11 +227,17 @@ class AWSRequest(asyncore.dispatcher_with_send):
 					raise		# out of retries
 				retries -= 1
 
-	def POST(self):
-		raise NotImplementedError
+	def execute(self, retries=5, follow=10):
+		mgr = AWSRequestManager()
+		mgr.add(self)
+		return mgr.execute(retries, follow)[0].result
+
+	def GET(self, retries=5, follow=10):
+		# XXX: deprecated
+		return self._execute('GET', retries, follow)
 
 	# Async methods
-	def GETAsync(self, manager, _map):
+	def ExecAsync(self, manager, _map):
 		self._map = _map
 		self._manager = manager
 		self._rx = []
@@ -238,7 +245,17 @@ class AWSRequest(asyncore.dispatcher_with_send):
 		self.connect((self._host, 80))
 
 	def handle_connect(self):
-		self.send("GET %s HTTP/1.0\r\nHost: %s\r\n\r\n" % (self.makePath(), self._host))
+		request = '%s %s HTTP/1.0\r\n' % (self._verb, self.makePath())
+		headers = ['Host: %s' % self._host]
+		if self._verb in ('PUT', 'POST'):
+			headers.append('Content-Length: %d' % self.getContentLength())
+		extra = self.makeHeaders(self._verb)
+		if extra is not None:
+			headers.extend(['%s: %s' % (key, value) for key, value in extra.items()])
+		self.send(request + '\r\n'.join(headers) + '\r\n\r\n')
+		body = self.makeBody()
+		if body:
+			self.send(body)
 
 	def handle_expt(self):
 		self._manager.reqComplete(self, False, 'connect')
@@ -246,7 +263,8 @@ class AWSRequest(asyncore.dispatcher_with_send):
 
 	def handle_error(self):
 		_, t, v, tbinfo = compact_traceback()
-		self._manager.reqComplete(self, False, 'exception %s:%s %s' % (t, v, tbinfo))
+		print 'channel error', str(t), repr(t)
+		self._manager.reqComplete(self, False, v)#'exception %s:%s %s' % (t, v, tbinfo))
 		self.close()
 
 	def handle_read(self):
@@ -270,7 +288,7 @@ class AWSRequest(asyncore.dispatcher_with_send):
 	def makeURL(self):
 		return 'http://' + self._host + self.makePath()
 
-	def makePath(self):
+	def makePath(self, verb='GET'):
 		parameters = self._parameters
 		parameters['Action'] = self._action
 		parameters['AWSAccessKeyId'] = self._key
@@ -289,6 +307,15 @@ class AWSRequest(asyncore.dispatcher_with_send):
 #		print 'base64 digest %r (%s)' % (digest, h.hexdigest())
 		parms.append('Signature=' + urllib.quote(digest, safe='-_~'))
 		return self._uri + '?' + '&'.join(parms)
+
+	def makeHeaders(self, verb='GET'):
+		pass
+
+	def makeBody(self):
+		return ''
+
+	def getContentLength(self):
+		return len(self.makeBody())
 
 
 if __name__ == '__main__':
