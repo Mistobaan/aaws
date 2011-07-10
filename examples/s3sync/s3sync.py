@@ -3,6 +3,7 @@ import sys
 sys.path.append('../..')
 import aaws
 import optparse
+import subprocess
 
 
 KB = 1024
@@ -31,9 +32,12 @@ class Meter(object):
 			sys.stderr.flush()
 
 
-def s3syncdir(s3, bucket, prefix, path, options):
-	objects, info = s3.ListObjects(bucket, prefix=prefix, delimiter=options.delimiter).execute()
-	os.listdir(path)
+def s3syncfiles(s3, bucket, prefix, flist, options):
+#	objects, info = s3.ListObjects(bucket, prefix=prefix, delimiter=options.delimiter).execute()
+
+	for f in flist:
+		mimetype = subprocess.check_output(['file', '-b', '--mime-type', f])
+		s3.PutObject(bucket, f, file(f, 'rb'), mimetype, Progress=Meter('%s (%s)' % (f, mimetype.strip()))).execute()
 
 
 def s3sync(bucket, path, options):
@@ -48,10 +52,11 @@ def s3sync(bucket, path, options):
 		flist = []
 		for root, dirs, files in os.walk(path):
 			for f in files:
-				flist.append(os.path.join(root, f))
+				flist.append(os.path.join(os.path.relpath(root), f))
 	else:
 		pass	# XXX: flist = os.listdir (without dirs) os.isdir
 
+	print flist
 	s3syncfiles(s3, bucket, prefix, flist, options)
 
 
