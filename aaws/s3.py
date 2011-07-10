@@ -55,8 +55,8 @@ class S3Request(request.AWSRequest):
 		for key in sorted(self._parameters.keys()):
 			parms.append(urllib.quote(key, safe='') + '=' + urllib.quote(self._parameters[key], safe='-_~'))
 		if len(parms):
-			return self._uri + '?' + '&'.join(parms)
-		return self._uri
+			return urllib.quote(self._uri) + '?' + '&'.join(parms)
+		return urllib.quote(self._uri)
 
 	def makeHeaders(self, verb='GET'):
 		timestamp = time.strftime('%a, %d %b %Y %H:%M:%S +0000', time.gmtime())
@@ -68,7 +68,7 @@ class S3Request(request.AWSRequest):
 			tosign = verb + "\n" + "\n" + "\n" + timestamp + "\n"
 		if self._bucket:
 			tosign += '/' + self._bucket
-		tosign += self._uri
+		tosign += urllib.quote(self._uri)
 		h = hmac.new(self._secret, tosign, digestmod=hashlib.sha1)
 		signature = base64.b64encode(h.digest())
 		auth = 'AWS %s:%s' % (self._key, signature)

@@ -263,7 +263,7 @@ class AWSRequest(asyncore.dispatcher_with_send):
 
 	def handle_error(self):
 		_, t, v, tbinfo = compact_traceback()
-		print 'channel error', str(t), repr(t)
+		print 'channel error', str(v)
 		self._manager.reqComplete(self, False, v)#'exception %s:%s %s' % (t, v, tbinfo))
 		self.close()
 
@@ -300,13 +300,13 @@ class AWSRequest(asyncore.dispatcher_with_send):
 		for key in sorted(parameters.keys()):
 			parms.append(urllib.quote(key, safe='') + '=' + urllib.quote(parameters[key], safe='-_~'))
 #			parms.append('%s=%s' % (key, urllib.quote(parameters[key])))
-		tosign = '%s\n%s\n%s\n%s' % ('GET', self._host, self._uri, '&'.join(parms))
+		tosign = '%s\n%s\n%s\n%s' % ('GET', self._host, urllib.quote(self._uri), '&'.join(parms))
 		h = hmac.new(self._secret, tosign, digestmod=hashlib.sha256)
 #		print '%r' % tosign
 		digest = base64.b64encode(h.digest())
 #		print 'base64 digest %r (%s)' % (digest, h.hexdigest())
 		parms.append('Signature=' + urllib.quote(digest, safe='-_~'))
-		return self._uri + '?' + '&'.join(parms)
+		return urllib.quote(self._uri) + '?' + '&'.join(parms)
 
 	def makeHeaders(self, verb='GET'):
 		pass
