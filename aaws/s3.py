@@ -228,6 +228,7 @@ class S3(AWSService):
 
 		return S3Request(BucketName + '.' + self._endpoint, '/', self._key, self._secret, BucketName, {
 				'delimiter': delimiter,
+				'prefix': prefix,
 			}, response)
 
 
