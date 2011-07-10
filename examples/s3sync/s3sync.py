@@ -6,6 +6,7 @@ import optparse
 import subprocess
 import os
 import os.path
+import time
 
 
 KB = 1024
@@ -35,11 +36,19 @@ class Meter(object):
 
 
 def s3syncfiles(s3, bucket, prefix, path, flist, options):
-#	objects, info = s3.ListObjects(bucket, prefix=prefix, delimiter=options.delimiter).execute()
+	objects, info = s3.ListObjects(bucket, prefix=prefix).execute()
 
 	for f in flist:
-		mimetype = subprocess.Popen(['file', '-b', '--mime-type', os.path.join(path, f)], stdout=subprocess.PIPE).communicate()[0]
-		s3.PutObject(bucket, f, file(os.path.join(path, f), 'rb'), mimetype, Progress=Meter('%s (%s)' % (f, mimetype.strip()))).execute(retries=0)
+		while os.path.exists(options.inhibit):
+			time.sleep(1.0)
+		if f in objects:
+			oursum = subprocess.Popen(['md5sum', os.path.join(path, f)], stdout=subprocess.PIPE).communicate()[0].strip()
+			print oursum, objects[f]['ETag']
+			if objects[f]['ETag'] == '"%s"' % oursum:
+				print 'Skipping', f
+				continue
+		mimetype = subprocess.Popen(['file', '-b', '--mime-type', os.path.join(path, f)], stdout=subprocess.PIPE).communicate()[0].strip()
+		s3.PutObject(bucket, f, file(os.path.join(path, f), 'rb'), mimetype, Progress=Meter('%s (%s)' % (f, mimetype))).execute()
 
 
 def s3sync(bucket, path, options):
@@ -70,6 +79,7 @@ if __name__ == '__main__':
 	parser.add_option('-R', '--recursive', action='store_true', help='Recurse into subdirectories')
 	parser.add_option('-r', '--region', help='Specify region to connect to (default us-west-1)', default='us-west-1')
 	parser.add_option('-d', '--delimiter', help='Specify path delimiter for S3 (default /)', default='/')
+	parser.add_option('-i', '--inhibit', help='Pause while the specified file exists (default None)', default=None)
 
 	(options, args) = parser.parse_args()
 
