@@ -38,6 +38,7 @@ class Meter(object):
 def s3syncfiles(s3, bucket, prefix, path, flist, options):
 	objects, info = s3.ListObjects(bucket, prefix=prefix).execute()
 
+	# Sync upload
 	for f in flist:
 		while os.path.exists(options.inhibit):
 			time.sleep(1.0)
@@ -49,6 +50,14 @@ def s3syncfiles(s3, bucket, prefix, path, flist, options):
 				continue
 		mimetype = subprocess.Popen(['file', '-b', '--mime-type', os.path.join(path, f)], stdout=subprocess.PIPE).communicate()[0].strip()
 		s3.PutObject(bucket, f, file(os.path.join(path, f), 'rb'), mimetype, Progress=Meter('%s (%s)' % (f, mimetype))).execute()
+
+	# Sync download
+	for k, v in objects.items():
+		if not os.path.exists(os.path.join(path, k)):
+			d, _ = os.path.split(k)
+			if not os.path.exists(os.path.join(path, d)):
+				os.makedirs(os.path.join(path, d))
+			s3.GetObject(bucket, k, file(os.path.join(path, k), 'wb'), Progress=Meter('%s' % k)).execute()
 
 
 def s3sync(bucket, path, options):
@@ -66,7 +75,7 @@ def s3sync(bucket, path, options):
 				flist.append(os.path.join(os.path.relpath(root, path), f))
 	else:
 		for f in os.listdir(path):
-			if not os.isdir(os.path.join(path, f)):
+			if not os.path.isdir(os.path.join(path, f)):
 				flist.append(f)
 
 #	print flist

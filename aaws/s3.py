@@ -36,6 +36,8 @@ import hashlib
 import base64
 import urllib
 import os
+import StringIO
+import mimetools
 
 
 class S3Request(request.AWSRequest):
@@ -45,8 +47,15 @@ class S3Request(request.AWSRequest):
 		self._body = body
 		self._progress = progresscb
 		self._sendfile = None
-		if hasattr(self._body, 'read'):
-			self._sendfile = self._body
+		self._recvfile = None
+		self._cl = None
+		self._rxtot = 0
+		if hasattr(body, 'read'):
+			if verb == 'GET':
+				self._recvfile = body
+				self._body = ''
+			else:
+				self._sendfile = self._body
 		self._contentType = contentType
 		request.AWSRequest.__init__(self, host, uri, key, secret, None, parameters, handler, follower, verb)
 
@@ -106,8 +115,8 @@ class S3Request(request.AWSRequest):
 	def handle_write(self):
 		request.AWSRequest.handle_write(self)
 		remain = len(self.out_buffer)
-		# XXX: callback our Progress meter
-		if self._progress:
+		# callback our Progress meter
+		if self._progress and self._verb != 'GET':
 			self._progress(self._buffered - remain, self._tosend)
 		if remain < 4096 and self._sendfile:
 			data = self._sendfile.read(4096)
@@ -125,6 +134,31 @@ class S3Request(request.AWSRequest):
 				self._sendfile = None
 			self._buffered = len(data)
 			self.send(data)
+
+	def handle_read(self):
+		if self._recvfile:
+			data = self.recv(4096)
+			if len(data) > 0:
+				if self._cl:
+					self._recvfile.write(data)
+					self._rxtot += len(data)
+					if self._progress:
+						self._progress(self._rxtot, self._cl)
+				else:
+					self._rx.append(data)
+					data = ''.join(self._rx)
+					header, data = data.split('\r\n\r\n', 1)
+					fp = StringIO.StringIO(header)
+					_, status, reason = fp.readline().split(' ', 2)
+					header = mimetools.Message(fp)
+					self._cl = int(header.get('Content-Length'))
+					self._recvfile.write(data)
+					if self._progress:
+						self._progress(len(data), self._cl)
+					self._rxtot = len(data)
+		else:
+			request.AWSRequest.handle_read(self)
+
 
 
 
@@ -240,6 +274,16 @@ class S3(AWSService):
 			raise AWSError(status, reason, data)
 
 		return S3Request(BucketName + '.' + self._endpoint, '/' + Key, self._key, self._secret, BucketName, {}, response, verb='PUT', body=Data, progresscb=Progress)
+
+
+	def GetObject(self, BucketName, Key, PutData, Progress=None):
+		def response(status, reason, data):
+			if status == 200:
+#				print data
+				return True
+			raise AWSError(status, reason, data)
+
+		return S3Request(BucketName + '.' + self._endpoint, '/' + Key, self._key, self._secret, BucketName, {}, response, verb='GET', body=PutData, progresscb=Progress)
 
 
 if __name__ == '__main__':
