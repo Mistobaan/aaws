@@ -65,9 +65,11 @@ def s3sync(bucket, path, options):
 			for f in files:
 				flist.append(os.path.join(os.path.relpath(root, path), f))
 	else:
-		pass	# XXX: flist = os.listdir (without dirs) os.isdir
+		for f in os.listdir(path):
+			if not os.isdir(os.path.join(path, f)):
+				flist.append(f)
 
-	print flist
+#	print flist
 	s3syncfiles(s3, bucket, prefix, path, flist, options)
 
 
