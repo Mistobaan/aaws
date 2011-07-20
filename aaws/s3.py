@@ -241,7 +241,7 @@ class S3(AWSService):
 #				print data
 				root = ET.fromstring(data)
 				objects = {}
-				limited = root.find('.//IsTruncated').text == 'true'
+				limited = root.find('.//{%s}IsTruncated' % self.xmlns).text == 'true'
 				for node in root.findall('.//{%s}CommonPrefixes' % self.xmlns):
 					prefix = node.find('{%s}Prefix' % self.xmlns).text
 					objects[prefix] = None
