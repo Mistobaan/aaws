@@ -43,10 +43,10 @@ def s3syncfiles(s3, bucket, prefix, path, flist, options):
 	for f in flist:
 		while os.path.exists(options.inhibit):
 			time.sleep(1.0)
-		if f in objects:
+		if prefix + f in objects:
 			oursum = subprocess.Popen(['md5sum', os.path.join(path, f)], stdout=subprocess.PIPE).communicate()[0].strip()
-			print oursum, objects[f]['ETag']
-			if objects[f]['ETag'] == '"%s"' % oursum:
+			print oursum, objects[prefix + f]['ETag']
+			if objects[prefix + f]['ETag'] == '"%s"' % oursum:
 				print 'Skipping', f
 				continue
 		mimetype = subprocess.Popen(['file', '-b', '--mime-type', os.path.join(path, f)], stdout=subprocess.PIPE).communicate()[0].strip()
