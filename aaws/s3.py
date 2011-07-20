@@ -59,6 +59,9 @@ class S3Request(request.AWSRequest):
 		self._contentType = contentType
 		request.AWSRequest.__init__(self, host, uri, key, secret, None, parameters, handler, follower, verb)
 
+	def copy(self):
+		return S3Request(self._host, self._uri, self._key, self._secret, self._bucket, self._parameters, self.handle, self.follow, self._verb)
+
 	def makePath(self, verb='GET'):
 		parms = []
 		for key in sorted(self._parameters.keys()):
