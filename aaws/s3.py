@@ -241,8 +241,7 @@ class S3(AWSService):
 #				print data
 				root = ET.fromstring(data)
 				objects = {}
-				# XXX: name, prefix, marker, maxkeys, istruncated
-				info = {}
+				limited = root.find('.//IsTruncated').text == 'true'
 				for node in root.findall('.//{%s}CommonPrefixes' % self.xmlns):
 					prefix = node.find('{%s}Prefix' % self.xmlns).text
 					objects[prefix] = None
@@ -257,7 +256,7 @@ class S3(AWSService):
 					findadd(obj, owner, 'ID', 'Owner.ID')
 					findadd(obj, owner, 'DisplayName', 'Owner.DisplayName')
 					objects[key] = obj
-				return objects, info
+				return objects, limited
 			raise AWSError(status, reason, data)
 
 		def follow(req, result, acc):
@@ -267,9 +266,9 @@ class S3(AWSService):
 				"""
 			if acc is None:
 				acc = {}
-			objects, info = result
+			objects, limited = result
 			acc.update(objects)
-			if info['IsTruncated'] == 'true':
+			if limited:
 				nextreq = req.copy()
 				nextreq.setParm('marker', max(objects.keys()))
 				return nextreq, acc
