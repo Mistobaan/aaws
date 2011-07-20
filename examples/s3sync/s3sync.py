@@ -36,7 +36,8 @@ class Meter(object):
 
 
 def s3syncfiles(s3, bucket, prefix, path, flist, options):
-	objects, info = s3.ListObjects(bucket, prefix=prefix).execute()
+	# XXX: broken for non-recursive
+	objects = s3.ListObjects(bucket, prefix=prefix).execute()
 
 	# Sync upload
 	for f in flist:
@@ -50,6 +51,8 @@ def s3syncfiles(s3, bucket, prefix, path, flist, options):
 				continue
 		mimetype = subprocess.Popen(['file', '-b', '--mime-type', os.path.join(path, f)], stdout=subprocess.PIPE).communicate()[0].strip()
 		s3.PutObject(bucket, f, file(os.path.join(path, f), 'rb'), mimetype, Progress=Meter('%s (%s)' % (f, mimetype))).execute()
+
+	return
 
 	# Sync download
 	for k, v in objects.items():
@@ -89,8 +92,10 @@ if __name__ == '__main__':
 	parser.add_option('-s', '--secret', help='Specify AWS secret (default from .boto)', default=s)
 	parser.add_option('-R', '--recursive', action='store_true', help='Recurse into subdirectories')
 	parser.add_option('-r', '--region', help='Specify region to connect to (default us-west-1)', default='us-west-1')
-	parser.add_option('-d', '--delimiter', help='Specify path delimiter for S3 (default /)', default='/')
+	parser.add_option('', '--delimiter', help='Specify path delimiter for S3 (default /)', default='/')
 	parser.add_option('-i', '--inhibit', help='Pause while the specified file exists (default None)', default=None)
+	parser.add_option('-u', '--upload', dest='actions', action='append_const', const='upload', help='Download from S3', default=[])
+	parser.add_option('-d', '--download', dest='actions', action='append_const', const='download', help='Upload to S3')
 
 	(options, args) = parser.parse_args()
 

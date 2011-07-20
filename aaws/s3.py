@@ -260,10 +260,26 @@ class S3(AWSService):
 				return objects, info
 			raise AWSError(status, reason, data)
 
+		def follow(req, result, acc):
+			"""This is a follower that expects a result in the form (list_of_things, NextToken).
+				If NextToken is not None then we return a copied request with the NextToken parameter set
+				to the returned NextToken, and accumulate the list_of_things.
+				"""
+			if acc is None:
+				acc = {}
+			objects, info = result
+			acc.update(objects)
+			if info['IsTruncated'] == 'true':
+				nextreq = req.copy()
+				nextreq.setParm('marker', max(objects.keys()))
+				return nextreq, acc
+			return None, acc
+
 		return S3Request(BucketName + '.' + self._endpoint, '/', self._key, self._secret, BucketName, {
 				'delimiter': delimiter,
 				'prefix': prefix,
-			}, response)
+				'marker': marker,
+			}, response, follow)
 
 
 	def PutObject(self, BucketName, Key, Data, ContentType='text/plain', Progress=None):
