@@ -191,9 +191,9 @@ class AWSRequest(asyncore.dispatcher_with_send):
 		print 'Default Handler: %r %r %r' % (status, reason, data)
 		return data
 
-	def follow(self, request, result, accumulator):
+	def follow(self, request):
 		# Default follow handler does not follow (We can't assume a NextToken)
-		return None, result
+		return None
 
 	# Sync methods
 	def _attemptReq(self, req, verb):
