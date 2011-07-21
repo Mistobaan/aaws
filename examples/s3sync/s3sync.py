@@ -55,13 +55,21 @@ class Counter(object):
 def md5sum(path, cache, options):
 	if path in cache:
 		return cache[path]
-	print 'check', path
-	if sys.platform.startswith('freebsd'):
-		sig = subprocess.Popen(['md5', '-q', path], stdout=subprocess.PIPE).communicate()[0]
-	else:
-		sig = subprocess.Popen(['md5sum', path], stdout=subprocess.PIPE).communicate()[0]
-	sig = sig.split(' ')[0].strip()
+	sig = None
+	if options.cachesum:
+		# Check filesystem
+		if os.path.exists(path + '.md5sum'):
+			sig = file(path + '.md5sum').read()
+	if sig is None:
+		print 'check', path
+		if sys.platform.startswith('freebsd'):
+			sig = subprocess.Popen(['md5', '-q', path], stdout=subprocess.PIPE).communicate()[0]
+		else:
+			sig = subprocess.Popen(['md5sum', path], stdout=subprocess.PIPE).communicate()[0]
+		sig = sig.split(' ')[0].strip()
 	cache[path] = sig
+	if options.cachesum:
+		file(path + '.md5sum', 'w').write(sig)
 	return sig
 
 def mimetype(path):
@@ -109,7 +117,8 @@ def s3sync(bucket, path, options):
 	if options.recursive:
 		for root, dirs, files in os.walk(path):
 			for f in files:
-				flist.append(os.path.join(os.path.relpath(root, path), f))
+				if not f.endswith('.md5sum'):
+					flist.append(os.path.join(os.path.relpath(root, path), f))
 		# Get S3 list
 		objects = s3.ListObjects(bucket, prefix=prefix, Progress=Counter('Listing files...')).execute()
 	else:
@@ -163,6 +172,7 @@ if __name__ == '__main__':
 	parser.add_option('-u', '--upload', dest='actions', action='append_const', const='upload', help='Download from S3', default=[])
 	parser.add_option('-d', '--download', dest='actions', action='append_const', const='download', help='Upload to S3')
 	parser.add_option('-n', '--dryrun', action='store_true', help='Dont copy anything, just tell us what you would have copied', default=False)
+	parser.add_option('-c', '--cachesum', action='store_true', help='Cache md5sum on filesystem', default=False)
 
 	(options, args) = parser.parse_args()
 
