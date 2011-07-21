@@ -102,7 +102,6 @@ class AWSRequestManager(object):
 				req._follows = follow
 			if req._retries is None:
 				req._retries = retries
-			req._current = req
 			req._idx = idx
 			req._accum = None
 		while True:
@@ -110,16 +109,15 @@ class AWSRequestManager(object):
 			tofollow = []
 			if follow:
 				for req in g:
-					req._current, req._accum = req.follow(req, req.result, req._accum)
-					if req._current is None:
-						req.result = req._accum
-						done.append(req)
-					else:
+					if req.follow(req):
 						req._follows -= 1
 						if req._follows < 0:
 							errors.append(aws.AWSError(-1, 'follows exceeded', req))
 							raise aws.AWSCompoundError(errors)
 						tofollow.append(req)
+					else:
+						req.result = req._accum
+						done.append(req)
 			else:
 				done.extend(g)
 			if len(b) == 0 and len(i) == 0 and len(tofollow) == 0:
@@ -127,29 +125,27 @@ class AWSRequestManager(object):
 				return done
 			self.clear()
 			for req in tofollow:
-				self.add(req._current)
+				self.add(req)
 			for req in b + i:
-				self.add(req._current)
+				self.add(req)
 				errors.append(req.result)
 				req._retries -= 1
 				if req._retries < 0:
 					raise aws.AWSCompoundError(errors)
 
 
-def ListFollow(req, result, acc):
+def ListFollow(req):
 	"""This is a follower that expects a result in the form (list_of_things, NextToken).
 		If NextToken is not None then we return a copied request with the NextToken parameter set
 		to the returned NextToken, and accumulate the list_of_things.
 		"""
-	if acc is None:
-		acc = []
-	items, token = result
-	acc.extend(items)
+	if req._accum is None:
+		req._accum = []
+	items, token = req.result
+	req._accum.extend(items)
 	if token is not None:
-		nextreq = req.copy()
-		nextreq.setParm('NextToken', token)
-		return nextreq, acc
-	return None, acc
+		req.setParm('NextToken', token)
+		return True
 
 
 class AWSRequest(asyncore.dispatcher_with_send):

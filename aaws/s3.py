@@ -230,7 +230,7 @@ class S3(AWSService):
 		return S3Request(BucketName + '.' + self._endpoint, '/', self._key, self._secret, BucketName, {}, response, body=body, verb='PUT')
 
 
-	def ListObjects(self, BucketName, delimiter=None, marker=None, maxKeys=None, prefix=None):
+	def ListObjects(self, BucketName, delimiter=None, marker=None, maxKeys=None, prefix=None, Progress=None):
 		""""""
 		def findadd(m, node, attr, dictattr=None):
 			if dictattr is None:
@@ -262,20 +262,22 @@ class S3(AWSService):
 				return objects, limited
 			raise AWSError(status, reason, data)
 
-		def follow(req, result, acc):
+		def follow(req):
 			"""This is a follower that expects a result in the form (list_of_things, NextToken).
 				If NextToken is not None then we return a copied request with the NextToken parameter set
 				to the returned NextToken, and accumulate the list_of_things.
 				"""
-			if acc is None:
-				acc = {}
-			objects, limited = result
-			acc.update(objects)
+			if req._accum is None:
+				req._accum = {}
+			objects, limited = req.result
+			req._accum.update(objects)
 			if limited:
-				nextreq = req.copy()
-				nextreq.setParm('marker', max(objects.keys()))
-				return nextreq, acc
-			return None, acc
+				req.setParm('marker', max(objects.keys()))
+				if Progress:
+					Progress(len(req._accum.keys()), False)
+				return True
+			if Progress:
+				Progress(len(req._accum.keys()), True)
 
 		return S3Request(BucketName + '.' + self._endpoint, '/', self._key, self._secret, BucketName, {
 				'delimiter': delimiter,
