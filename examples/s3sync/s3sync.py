@@ -52,10 +52,15 @@ class Counter(object):
 		sys.stderr.flush()
 
 
-def md5sum(path, cache):
+def md5sum(path, cache, options):
 	if path in cache:
 		return cache[path]
-	sig = subprocess.Popen(['md5sum', path], stdout=subprocess.PIPE).communicate()[0].strip()
+	print 'check', path
+	if sys.platform.startswith('freebsd'):
+		sig = subprocess.Popen(['md5', '-q', path], stdout=subprocess.PIPE).communicate()[0]
+	else:
+		sig = subprocess.Popen(['md5sum', path], stdout=subprocess.PIPE).communicate()[0]
+	sig = sig.split(' ')[0].strip()
 	cache[path] = sig
 	return sig
 
@@ -72,8 +77,9 @@ def s3relpath(prefix, p, options):
 
 def s3syncops(s3, bucket, prefix, path, operations, options):
 	for op in operations:
-		while os.path.exists(options.inhibit):
-			time.sleep(1.0)
+		if options.inhibit:
+			while os.path.exists(options.inhibit):
+				time.sleep(1.0)
 		if op[0] == 'same':
 			pass
 		elif op[0] == 'download':
@@ -118,18 +124,19 @@ def s3sync(bucket, path, options):
 	for action in options.actions:
 		if action == 'download':
 			# s3 -> filesystem
-			for f, obj in objects.items():
+			for k, obj in objects.items():
+				f = s3relpath(prefix, k, options)
 				if os.path.exists(os.path.join(path, f)):
-					oursum = md5sum(os.path.join(path, f), sigcache)
+					oursum = md5sum(os.path.join(path, f), sigcache, options)
 					if obj['ETag'] == '"%s"' % oursum:
 						operations.append(['same', f])
 						continue
-				operations.append(['download', s3relpath(prefix, f, options)])
+				operations.append(['download', f])
 		elif action == 'upload':
 			# filesystem -> s3
 			for f in flist:
 				if s3pathjoin(prefix, f, options) in objects:
-					oursum = md5sum(os.path.join(path, f), sigcache)
+					oursum = md5sum(os.path.join(path, f), sigcache, options)
 					if objects[s3pathjoin(prefix, f, options)]['ETag'] == '"%s"' % oursum:
 						operations.append(['same', f])
 						continue
@@ -140,7 +147,7 @@ def s3sync(bucket, path, options):
 		for op in operations:
 			print op
 	else:
-		s3syncops(operations)
+		s3syncops(s3, bucket, prefix, path, operations, options)
 #	s3syncfiles(s3, bucket, prefix, path, flist, options)
 
 
