@@ -59,7 +59,8 @@ def md5sum(path, cache, options):
 	if options.cachesum:
 		# Check filesystem
 		if os.path.exists(path + '.md5sum'):
-			sig = file(path + '.md5sum').read()
+			if os.stat(path + '.md5sum').st_mtime > os.stat(path).mtime:
+				sig = file(path + '.md5sum').read()
 	if sig is None:
 		print 'check', path
 		if sys.platform.startswith('freebsd'):
@@ -169,8 +170,8 @@ if __name__ == '__main__':
 	parser.add_option('-r', '--region', help='Specify region to connect to (default us-west-1)', default='us-west-1')
 	parser.add_option('', '--delimiter', help='Specify path delimiter for S3 (default /)', default='/')
 	parser.add_option('-i', '--inhibit', help='Pause while the specified file exists (default None)', default=None)
-	parser.add_option('-u', '--upload', dest='actions', action='append_const', const='upload', help='Download from S3', default=[])
-	parser.add_option('-d', '--download', dest='actions', action='append_const', const='download', help='Upload to S3')
+	parser.add_option('-u', '--upload', dest='actions', action='append_const', const='upload', help='Upload to S3', default=[])
+	parser.add_option('-d', '--download', dest='actions', action='append_const', const='download', help='Download from S3')
 	parser.add_option('-n', '--dryrun', action='store_true', help='Dont copy anything, just tell us what you would have copied', default=False)
 	parser.add_option('-c', '--cachesum', action='store_true', help='Cache md5sum on filesystem', default=False)
 

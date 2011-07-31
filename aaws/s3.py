@@ -293,7 +293,7 @@ class S3(AWSService):
 				return True
 			raise AWSError(status, reason, data)
 
-		return S3Request(BucketName + '.' + self._endpoint, '/' + Key, self._key, self._secret, BucketName, {}, response, verb='PUT', body=Data, progresscb=Progress)
+		return S3Request(BucketName + '.' + self._endpoint, '/' + Key, self._key, self._secret, BucketName, {}, response, verb='PUT', body=Data, contentType=ContentType, progresscb=Progress)
 
 
 	def GetObject(self, BucketName, Key, PutData, Progress=None):
