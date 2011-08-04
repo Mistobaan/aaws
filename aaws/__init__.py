@@ -21,6 +21,7 @@ from request import AWSRequestManager, AWSRequest
 from aws import AWSService, AWSError, getBotoCredentials
 from sqs import SQS
 from sns import SNS
+from ec2 import EC2
 from s3 import S3
 from simpledb import SimpleDB
 import util

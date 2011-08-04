@@ -193,7 +193,7 @@ class AWSRequest(asyncore.dispatcher_with_send):
 
 	def follow(self, request):
 		# Default follow handler does not follow (We can't assume a NextToken)
-		return None
+		request._accum = request.result
 
 	# Sync methods
 	def _attemptReq(self, req, verb):
