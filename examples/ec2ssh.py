@@ -27,10 +27,14 @@ import os
 
 
 def ec2ssh(ec2, kws, iid, options):
+	def lower(s):
+		if s is None:
+			return None
+		return s.lower()
 	connectTo = None
 	for i in ec2.DescribeInstances().execute():
 		if iid is None:
-			tags = [(k.lower(), v.lower()) for k, v in i['tags'].items()]
+			tags = [(lower(k), lower(v)) for k, v in i['tags'].items()]
 			for k, v in kws.items():
 				if (k.lower(), v.lower()) not in tags:
 #					print i['tags']

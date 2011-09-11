@@ -17,12 +17,14 @@
 # along with AAWS.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from proxy import ServiceProxy, ManagerProxy
 from request import AWSRequestManager, AWSRequest
 from aws import AWSService, AWSError, getBotoCredentials
 from sqs import SQS
 from sns import SNS
 from ec2 import EC2
 from s3 import S3
+from route53 import Route53
 from simpledb import SimpleDB
 import util
 
