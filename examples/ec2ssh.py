@@ -19,11 +19,12 @@
 #
 
 import sys
-sys.path.append('..')
-import aaws
 import optparse
 import subprocess
 import os
+# add parent directory to path (works even when cwd is not script's directory)
+sys.path.append(os.path.normpath(os.path.join(sys.path[0], '..')))
+import aaws
 
 
 def ec2ssh(ec2, kws, iid, options):

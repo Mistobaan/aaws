@@ -22,11 +22,13 @@
 #
 
 import sys
-sys.path.append('..')
-import aaws
+import os
 import optparse
 import subprocess
-import os
+# add parent directory to path (works even when cwd is not script's directory)
+sys.path.append(os.path.normpath(os.path.join(sys.path[0], '..')))
+import aaws
+
 
 def getData(dns):
 	zones = dns.ListHostedZones()
@@ -41,7 +43,7 @@ def untrail(v):
 		return v[:-1]
 	return v
 
-def fromTiny(lines, defaultTtl=86400):
+def fromTiny(lines, ignore={}, defaultTtl=86400):
 	def toInt(v, default):
 		if v in ('', '\n'):
 			return default
@@ -66,6 +68,9 @@ def fromTiny(lines, defaultTtl=86400):
 			a = parms(line)
 			if line.startswith('#') or line.startswith('\n'):
 				pass
+			elif line.startswith('_'):
+				# special linetype (not used by tinydns) meaning allow server side definitions of this hostname
+				ignore[a[0] + '.'] = True
 			elif line.startswith('.'):
 				add('NS', a[0], a[2] + '.', a[3])
 			elif line.startswith('+'):
@@ -166,13 +171,18 @@ def onlyzone(data, zones):
 	return res
 
 
-def diff(frm, to):
+def diff(zone, frm, to, ignore={}):
 	create = []
 	delete = []
 	for (name, typ, ttl), frmvalues in frm.items():
 		frmvalues.sort()
 		if (name, typ, ttl) not in to:
-			delete.append((name, typ, ttl, frmvalues))
+			if typ in ('NS', 'SOA') and name == zone:
+				pass		# don't delete zone NS
+			elif name in ignore:
+				pass		# specifically 'ignored' name
+			else:
+				delete.append((name, typ, ttl, frmvalues))
 		else:
 			tovalues = to[(name, typ, ttl)]
 			tovalues.sort()
@@ -183,6 +193,7 @@ def diff(frm, to):
 		if (name, typ, ttl) not in frm:
 			create.append((name, typ, ttl, tovalues))
 	return create, delete
+
 
 def toDict(rrs):
 	res = {}
@@ -202,6 +213,7 @@ if __name__ == '__main__':
 	parser.add_option('-t', '--type', action='append', help='Add a rrtype to operate on (all when none are provided)', default=[])
 	parser.add_option('-z', '--zone', action='append', help='Add a zone to operate on (all when none are provided)', default=[])
 	parser.add_option('', '--authority', dest='action', action='store_const', const='authority', help='Get authority for zones', default=None)
+	parser.add_option('', '--checkauthority', dest='action', action='store_const', const='checkauthority', help='Check authority for zones')
 	parser.add_option('-u', '--upload', dest='action', action='store_const', const='upload', help='Upload to route53')
 #	parser.add_option('-d', '--download', dest='action', action='append_const', const='download', help='Download from route53')
 
@@ -219,51 +231,93 @@ if __name__ == '__main__':
 			fh = file(options.file)
 		else:
 			fh = sys.stdin
-		data = byZone(fromTiny(fh.readlines()))
+		ignore = {}
+		data = byZone(fromTiny(fh.readlines(), ignore))
 		if len(options.zone):
 			data = onlyzone(data, options.zone)
 		if len(options.type):
 			for name, rrs in data.items():
 				data[name] = onlyrrs(rrs, options.type)
-		print data
+#		print data
 		# Upload by zone
 		zones = dns.ListHostedZones()
 
 		for zname in data.keys():
 			if zname not in zones:
 				print 'Create zone', zname
-				if not options.dryrun:
+				if options.dryrun:
+					continue
+				else:
 					zoneId = dns.CreateHostedZone(zname)
 			else:
 				zoneId = zones[zname]['Id']
 			awsrrs = dns.ListResourceRecordSets(zoneId)
 			ourrrs = data[zname]
-			c, d = diff(notrrs(toDict(awsrrs), ('NS', 'SOA')), ourrrs)
+			c, d = diff(zname, toDict(awsrrs), ourrrs, ignore)
 			print 'Sync zone', zname
 			for op in d:
 				print 'DELETE', op
 			for op in c:
 				print 'CREATE', op
 			if not options.dryrun:
-				print dns.ChangeResourceRecord(zoneId, Create=c, Delete=d)
+				if len(c) + len(d) > 0:
+					print dns.ChangeResourceRecord(zoneId, Create=c, Delete=d)
 
-#		for key in zones.keys():
-#			zoneId = zones[key]['Id']
-#			rrs = dns.ListResourceRecordSets(zoneId)
-#			zones[key]['Records'] = rrs
+		if len(options.zone) == 0:
+			for zname in zones.keys():
+				if zname not in data.keys():
+					print 'Delete zone', zname
+					if options.dryrun:
+						continue
+					else:
+						zoneId = zones[zname]['Id']
+						toDelete = []
+						for (name, typ, ttl, values) in dns.ListResourceRecordSets(zoneId):
+							if name == zname and typ in ('NS', 'SOA'):
+								continue
+							toDelete.append((name, typ, ttl, values))
+						print dns.ChangeResourceRecord(zoneId, Delete=toDelete)
+						dns.DeleteHostedZone(zoneId)
 
-
-#		for name, typ, ttl in data.keys():
-#			print name, typ
-#		print data
 	elif options.action == 'authority':
 		zones = dns.ListHostedZones()
+		if len(options.zone):
+			zones = onlyzone(zones, options.zone)
 		for zname in zones.keys():
 			zoneId = zones[zname]['Id']
 			print zname
 			for (name, typ, ttl), values in onlyrrs(toDict(dns.ListResourceRecordSets(zoneId)), ('NS,')).items():
 				if name == zname:
-					print '   %s %d %r' % (typ, ttl, values)
+					for val in values:
+						ip = subprocess.Popen(['dnsip', val], stdout=subprocess.PIPE).communicate()[0].strip()
+						print '   %s %d %s %s' % (typ, ttl, val, ip)
 				else:
 					print '   => %s %s %d %r' % (name, typ, ttl, values)
+	elif options.action == 'checkauthority':
+		def dnsqr(typ, name):
+			if name.endswith('.'):
+				name = name[:-1]
+			lines = subprocess.Popen(['dnsqr', typ, name], stdout=subprocess.PIPE).communicate()[0].split('\n')
+			results = []
+			for line in lines:
+				if line.startswith('answer:'):
+					_, _name, ttl, _typ, result = line.split(' ')
+					results.append(result + '.')
+			return results
+		zones = dns.ListHostedZones()
+		if len(options.zone):
+			zones = onlyzone(zones, options.zone)
+		for zname in zones.keys():
+			zoneId = zones[zname]['Id']
+			print zname,
+			for (name, typ, ttl), values in onlyrrs(toDict(dns.ListResourceRecordSets(zoneId)), ('NS,')).items():
+				if name == zname:
+					authority = dnsqr('ns', name)
+#					print authority, values
+					authority.sort()
+					values.sort()
+					if authority == values:
+						print 'OK'
+					else:
+						print 'ERROR authority %r aws %r' % (authority, values)
 

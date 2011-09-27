@@ -154,7 +154,13 @@ class Route53(AWSService):
 
 
 	def DeleteHostedZone(self, ZoneId):
-		pass
+		"""Delete a zone. It must be empty."""
+
+		def response(status, reason, data):
+			if status == 200:
+				return True
+			raise AWSError(status, reason, data)
+		return self.req(self._endpoint, self.version, 'hostedzone/' + ZoneId.split('/')[-1], self._key, self._secret, {}, response, None, 'DELETE')
 
 
 	def ListResourceRecordSets(self, ZoneId, name=None, type=None, identifier=None, maxItems=None):
@@ -220,10 +226,10 @@ class Route53(AWSService):
 		changes = ET.SubElement(batch, '{%s}Changes' % self.xmlns)
 
 		items = []
-		if Create:
-			items.extend([('CREATE', name, typ, ttl, values) for name, typ, ttl, values in Create])
 		if Delete:
 			items.extend([('DELETE', name, typ, ttl, values) for name, typ, ttl, values in Delete])
+		if Create:
+			items.extend([('CREATE', name, typ, ttl, values) for name, typ, ttl, values in Create])
 
 		for action, name, typ, ttl, values in items:
 			change = ET.SubElement(changes, '{%s}Change' % self.xmlns)
