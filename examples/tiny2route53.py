@@ -82,7 +82,7 @@ def fromTiny(lines, ignore={}, defaultTtl=86400):
 			elif line.startswith('@'):
 				add('MX', a[0], '%d %s' % (toInt(a[3], 0), a[2]), a[4])
 			elif line.startswith('\''):
-				pass		# SPF
+				add('TXT', a[0], '"' + a[1] + '"', a[2])
 			elif line.startswith(':'):
 				pass		# General
 			elif line.startswith('C'):
