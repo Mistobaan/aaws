@@ -147,6 +147,34 @@ class SQS(AWSService):
 			'MessageBody': MessageBody,
 		}, response)
 
+	def SendMessageBatch(self, queueUrl, MessageBodyList):
+		"""The sendMessageBatch action delivers a message to the specified queue.
+
+			MessageBodyList -- A list of MessageBody as in SendMessage
+
+			Returns MessageId, MD5OfMessageBody (both strings)
+		"""
+
+		def response(status, reason, data):
+			if status == 200:
+				root = ET.fromstring(data)
+				n1 = root.find('.//{http://queue.amazonaws.com/doc/2009-02-01/}MD5OfMessageBody')
+				n2 = root.find('.//{http://queue.amazonaws.com/doc/2009-02-01/}MessageId')
+				if n1 is not None and n2 is not None:
+					return n2.text, n1.text
+			raise AWSError(status, reason, data)
+
+        params = {
+            'Version': self.version,
+        }
+
+        for idx, message in enumerate(MessageBodyList):
+            params['SendMessageBatchRequestEntry.%d.Id' % idx] = "msg%d" % idx
+            params['SendMessageBatchRequestEntry.%d.MessageBody' % idx] = message
+
+		p = urlparse(queueUrl)
+		return request.AWSRequest(self._endpoint, p.path, self._key, self._secret, 'SendMessageBatch', params, response)
+
 
 	def ReceiveMessage(self, queueUrl, AttributeNames=None, MaxNumberOfMessages=None, VisibilityTimeout=None):
 		"""The receiveMessage action retrieves one or more messages from the specified queue.
