@@ -444,10 +444,10 @@ if __name__ == '__main__':
     q = sqs.CreateQueue('aaws-test').execute()
     print repr(q)
 
-    #print sqs.GetQueueAttributes(q).execute()
-    #print sqs.GetQueueAttributes(q, ['QueueArn', 'Policy']).execute()
-    #print sqs.SendMessage(q, 'hello world').execute()
-    #print sqs.SendMessageBatch(q, ['hello world 1', "hello world2", "test me"] ).execute()
+    print sqs.GetQueueAttributes(q).execute()
+    print sqs.GetQueueAttributes(q, ['QueueArn', 'Policy']).execute()
+    print sqs.SendMessage(q, 'hello world').execute()
+    print sqs.SendMessageBatch(q, ['hello world 1', "hello world2", "test me"] ).execute()
 
     while True:
         msgs = sqs.ReceiveMessage(q, AttributeNames=['All'],
