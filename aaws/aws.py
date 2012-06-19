@@ -31,53 +31,52 @@ import os.path
 # RDS
 
 def getBotoCredentials():
-	import ConfigParser
-	configParser = ConfigParser.ConfigParser()
-	pth = os.path.expanduser('~/.boto')
-	if not os.path.exists(pth):
-		pth = '/etc/boto.cfg'
-	configParser.read(pth)
-	key = configParser.get('Credentials', 'aws_access_key_id', False, None)
-	secret = configParser.get('Credentials', 'aws_secret_access_key', False, None)
-	return key, secret
+    import ConfigParser
+    configParser = ConfigParser.ConfigParser()
+    pth = os.path.expanduser('~/.boto')
+    if not os.path.exists(pth):
+        pth = '/etc/boto.cfg'
+    configParser.read(pth)
+    key = configParser.get('Credentials', 'aws_access_key_id', False, None)
+    secret = configParser.get('Credentials', 'aws_secret_access_key', False, None)
+    return key, secret
 
 
 class AWSError(Exception):
 
-	def __init__(self, status, reason, data):
-		self.status, self.reason, self.data = status, reason, data
+    def __init__(self, status, reason, data):
+        self.status, self.reason, self.data = status, reason, data
 
-	def __str__(self):
-		return '(%s %s)\n%s' % (self.status, self.reason, self.data)
+    def __str__(self):
+        return '(%s %s)\n%s' % (self.status, self.reason, self.data)
 
 
 class AWSCompoundError(Exception):
 
-	def __init__(self, errors):
-		self.errors = errors
+    def __init__(self, errors):
+        self.errors = errors
 
-	def __str__(self):
-		return '\n'.join([str(error) for error in self.errors])
+    def __str__(self):
+        return '\n'.join([str(error) for error in self.errors])
 
 
 class AWSService(object):
-	pass
+    pass
 
 
 
 
 class SNS(AWSService):
-	pass
+    pass
 
 
 if __name__ == '__main__':
-	key, secret = request.getBotoCredentials()
-	sqs = SQS('us-west-1', key, secret)
-	req = sqs.CreateQueue('pointstore')
-	print req.makeURL()
-	print req.blockGET()
+    key, secret = request.getBotoCredentials()
+    sqs = SQS('us-west-1', key, secret)
+    req = sqs.CreateQueue('pointstore')
+    print req.makeURL()
+    print req.blockGET()
 
-	req = sqs.ListQueues()
-	print req.makeURL()
-	print req.blockGET()
-
+    req = sqs.ListQueues()
+    print req.makeURL()
+    print req.blockGET()

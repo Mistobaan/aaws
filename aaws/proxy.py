@@ -19,43 +19,42 @@
 #
 
 class ServiceProxy(object):
-	_is_proxy = True
+    _is_proxy = True
 
-	def __init__(self, service):
-		if hasattr(service, '_is_proxy'):
-			self._service = service._service
-		else:
-			self._service = service
-		for methname in dir(self._service):
-			if 'A' <= methname[0] <= 'Z':
-				method = getattr(self._service, methname)
-				if hasattr(method, '__call__'):
-#					print methname, method, dir(method)
-					self.proxy(methname, method)
+    def __init__(self, service):
+        if hasattr(service, '_is_proxy'):
+            self._service = service._service
+        else:
+            self._service = service
+        for methname in dir(self._service):
+            if 'A' <= methname[0] <= 'Z':
+                method = getattr(self._service, methname)
+                if hasattr(method, '__call__'):
+#                                       print methname, method, dir(method)
+                    self.proxy(methname, method)
 
-	def proxy(self, methname, method):
-		def thunk(*args, **kws):
-			return method(*args, **kws).execute()
-		setattr(self, methname, thunk)
+    def proxy(self, methname, method):
+        def thunk(*args, **kws):
+            return method(*args, **kws).execute()
+        setattr(self, methname, thunk)
 
 
 class ManagerProxy(object):
-	_is_proxy = True
+    _is_proxy = True
 
-	def __init__(self, mgr, service):
-		if hasattr(service, '_is_proxy'):
-			self._service = service._service
-		else:
-			self._service = service
-		for methname in dir(self._service):
-			if 'A' <= methname[0] <= 'Z':
-				method = getattr(self._service, methname)
-				if hasattr(method, '__call__'):
-#					print methname, method, dir(method)
-					self.proxy(mgr, methname, method)
+    def __init__(self, mgr, service):
+        if hasattr(service, '_is_proxy'):
+            self._service = service._service
+        else:
+            self._service = service
+        for methname in dir(self._service):
+            if 'A' <= methname[0] <= 'Z':
+                method = getattr(self._service, methname)
+                if hasattr(method, '__call__'):
+#                                       print methname, method, dir(method)
+                    self.proxy(mgr, methname, method)
 
-	def proxy(self, mgr, methname, method):
-		def thunk(*args, **kws):
-			mgr.add(method(*args, **kws))
-		setattr(self, methname, thunk)
-
+    def proxy(self, mgr, methname, method):
+        def thunk(*args, **kws):
+            mgr.add(method(*args, **kws))
+        setattr(self, methname, thunk)

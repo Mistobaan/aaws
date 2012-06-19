@@ -24,75 +24,74 @@ from urlparse import urlparse
 
 
 def SubscribeQueue(sqs, sns, queueName, topicName):
-	queue = sqs.CreateQueue(queueName).GET()
-	topic = sns.CreateTopic(topicName).GET()
-	p = urlparse(queue)
-	attr = sqs.GetQueueAttributes(queue, ['QueueArn', 'Policy']).GET()
-	if attr.get('Policy'):
-		policy = json.loads(attr['Policy'])
-#		print 'existing policy', repr(policy)
-		statements = policy['Statement']
-		if not isinstance(statements, list):
-			statements = [statements]
-		for statement in statements:
-			if statement.get('Sid') == 'allow%s' % topicName:
-				break		# we've already set an allow
-		else:
-			statements.append({
-					'Action': 'sqs:*',
-					'Effect': 'Allow',
-					'Principal': {'AWS' : '*'},
-					'Resource': p.path,
-					'Sid': 'allow%s' % topicName,
-					'Condition': {'StringEquals': {'aws:SourceArn': topic}},
-				})
-			policy['Statement'] = statements
-#			print 'new policy', repr(policy)
-			sqs.SetQueueAttributes(queue, 'Policy', json.dumps(policy)).GET()
-	else:
-		policy = {
-			'Version': '2008-10-17',
-			'Id': str(uuid.uuid4()),
-			'Statement': {
-					'Action': 'sqs:*',
-					'Effect': 'Allow',
-					'Principal': {'AWS' : '*'},
-					'Resource': p.path,
-					'Sid': 'allow%s' % topicName,
-					'Condition': {'StringEquals': {'aws:SourceArn': topic}},
-				},
-		}
-#		print 'new policy', repr(policy)
-		sqs.SetQueueAttributes(queue, 'Policy', json.dumps(policy)).GET()
-	subscriptionArn = sns.Subscribe(topic, 'sqs', attr['QueueArn']).GET()
-	return queue, topic, subscriptionArn
+    queue = sqs.CreateQueue(queueName).GET()
+    topic = sns.CreateTopic(topicName).GET()
+    p = urlparse(queue)
+    attr = sqs.GetQueueAttributes(queue, ['QueueArn', 'Policy']).GET()
+    if attr.get('Policy'):
+        policy = json.loads(attr['Policy'])
+#               print 'existing policy', repr(policy)
+        statements = policy['Statement']
+        if not isinstance(statements, list):
+            statements = [statements]
+        for statement in statements:
+            if statement.get('Sid') == 'allow%s' % topicName:
+                break           # we've already set an allow
+        else:
+            statements.append({
+                            'Action': 'sqs:*',
+                            'Effect': 'Allow',
+                            'Principal': {'AWS' : '*'},
+                            'Resource': p.path,
+                            'Sid': 'allow%s' % topicName,
+                            'Condition': {'StringEquals': {'aws:SourceArn': topic}},
+                    })
+            policy['Statement'] = statements
+#                       print 'new policy', repr(policy)
+            sqs.SetQueueAttributes(queue, 'Policy', json.dumps(policy)).GET()
+    else:
+        policy = {
+                'Version': '2008-10-17',
+                'Id': str(uuid.uuid4()),
+                'Statement': {
+                                'Action': 'sqs:*',
+                                'Effect': 'Allow',
+                                'Principal': {'AWS' : '*'},
+                                'Resource': p.path,
+                                'Sid': 'allow%s' % topicName,
+                                'Condition': {'StringEquals': {'aws:SourceArn': topic}},
+                        },
+        }
+#               print 'new policy', repr(policy)
+        sqs.SetQueueAttributes(queue, 'Policy', json.dumps(policy)).GET()
+    subscriptionArn = sns.Subscribe(topic, 'sqs', attr['QueueArn']).GET()
+    return queue, topic, subscriptionArn
 
 
 if __name__ == '__main__':
-	import sys
-	from sqs import SQS
-	from sns import SNS
-	import time
+    import sys
+    from sqs import SQS
+    from sns import SNS
+    import time
 
-	key, secret = getBotoCredentials()
-	sqs = SQS('us-west-1', key, secret)
-	sns = SNS('us-west-1', key, secret)
+    key, secret = getBotoCredentials()
+    sqs = SQS('us-west-1', key, secret)
+    sns = SNS('us-west-1', key, secret)
 
-	if 'cleanq' in sys.argv:
-		q = sqs.CreateQueue('testSubscribeQ').GET()
-		print sqs.DeleteQueue(q).GET()
-	if 'cleantopic' in sys.argv:
-		topic = sns.CreateTopic('testSubscribeT').GET()
-		print sns.DeleteTopic(topic).GET()
-	if 'subscribeq' in sys.argv:
-		SubscribeQueue(sqs, sns, 'testSubscribeQ', 'testSubscribeT')
-	if 'roundtrip' in sys.argv:
-		queue, topic, _ = SubscribeQueue(sqs, sns, 'testSubscribeQ', 'testSubscribeT')
-		time.sleep(2.0)
-		sns.Publish(topic, 'Test message').GET()
-		time.sleep(2.0)
-		msgs = sqs.ReceiveMessage(queue, AttributeNames=['All'], MaxNumberOfMessages=2).GET()
-		print repr(msgs)
-		for msg in msgs:
-			print sqs.DeleteMessage(queue, msg['ReceiptHandle']).GET()
-
+    if 'cleanq' in sys.argv:
+        q = sqs.CreateQueue('testSubscribeQ').GET()
+        print sqs.DeleteQueue(q).GET()
+    if 'cleantopic' in sys.argv:
+        topic = sns.CreateTopic('testSubscribeT').GET()
+        print sns.DeleteTopic(topic).GET()
+    if 'subscribeq' in sys.argv:
+        SubscribeQueue(sqs, sns, 'testSubscribeQ', 'testSubscribeT')
+    if 'roundtrip' in sys.argv:
+        queue, topic, _ = SubscribeQueue(sqs, sns, 'testSubscribeQ', 'testSubscribeT')
+        time.sleep(2.0)
+        sns.Publish(topic, 'Test message').GET()
+        time.sleep(2.0)
+        msgs = sqs.ReceiveMessage(queue, AttributeNames=['All'], MaxNumberOfMessages=2).GET()
+        print repr(msgs)
+        for msg in msgs:
+            print sqs.DeleteMessage(queue, msg['ReceiptHandle']).GET()
