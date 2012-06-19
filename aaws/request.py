@@ -41,6 +41,7 @@ import sys
 import aws
 import proxy
 
+DEBUG = False
 
 def compact_traceback():
     t, v, tb = sys.exc_info()
@@ -252,6 +253,9 @@ class AWSRequest(asyncore.dispatcher_with_send):
         body = self.makeBody()
         if body:
             self.send(body)
+
+        if DEBUG:
+            print request, headers, body
 
     def handle_expt(self):
         self._manager.reqComplete(self, False, 'connect')
