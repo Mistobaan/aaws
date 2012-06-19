@@ -31,8 +31,8 @@ class SQS(AWSService):
         'ap-southeast-1': 'sqs.ap-southeast-1.amazonaws.com',
         'ap-northeast-1': 'sqs.ap-northeast-1.amazonaws.com',
     }
-    version = '2009-02-01'
-    xmlns = 'http://queue.amazonaws.com/doc/2009-02-01/'
+    version = '2011-10-01'
+    xmlns = 'http://queue.amazonaws.com/doc/%s/' % version
 
     def __init__(self, region, key, secret, version=None):
         self._region = region
@@ -62,7 +62,7 @@ class SQS(AWSService):
         def response(status, reason, data):
             if status == 200:
                 root = ET.fromstring(data)
-                node = root.find('.//{http://queue.amazonaws.com/doc/2009-02-01/}QueueUrl')
+                node = root.find('.//{http://queue.amazonaws.com/doc/%s/}QueueUrl' % self.version)
                 if node is not None:
                     return node.text
             raise AWSError(status, reason, data)
@@ -86,7 +86,7 @@ class SQS(AWSService):
             if status == 200:
                 root = ET.fromstring(data)
                 queues = []
-                for node in root.findall('.//{http://queue.amazonaws.com/doc/2009-02-01/}QueueUrl'):
+                for node in root.findall('.//{http://queue.amazonaws.com/doc/%s/}QueueUrl' % self.version):
                     queues.append(node.text)
                 return queues
             raise AWSError(status, reason, data)
@@ -135,8 +135,8 @@ class SQS(AWSService):
         def response(status, reason, data):
             if status == 200:
                 root = ET.fromstring(data)
-                n1 = root.find('.//{http://queue.amazonaws.com/doc/2009-02-01/}MD5OfMessageBody')
-                n2 = root.find('.//{http://queue.amazonaws.com/doc/2009-02-01/}MessageId')
+                n1 = root.find('.//{http://queue.amazonaws.com/doc/%s/}MD5OfMessageBody' % self.version)
+                n2 = root.find('.//{http://queue.amazonaws.com/doc/%s/}MessageId' % self.version)
                 if n1 is not None and n2 is not None:
                     return n2.text, n1.text
             raise AWSError(status, reason, data)
@@ -158,10 +158,11 @@ class SQS(AWSService):
         def response(status, reason, data):
             if status == 200:
                 root = ET.fromstring(data)
-                n1 = root.find('.//{http://queue.amazonaws.com/doc/2009-02-01/}MD5OfMessageBody')
-                n2 = root.find('.//{http://queue.amazonaws.com/doc/2009-02-01/}MessageId')
+                n1 = root.findall('.//{http://queue.amazonaws.com/doc/%s/}MD5OfMessageBody' % self.version)
+                n2 = root.findall('.//{http://queue.amazonaws.com/doc/%s/}MessageId' % self.version)
                 if n1 is not None and n2 is not None:
-                    return n2.text, n1.text
+                    return [(a.text, b.text) for a,b in zip(n1, n2)]
+
             raise AWSError(status, reason, data)
 
         params = {
@@ -169,6 +170,7 @@ class SQS(AWSService):
         }
 
         for idx, message in enumerate(MessageBodyList):
+            idx += 1
             params['SendMessageBatchRequestEntry.%d.Id' % idx] = "msg%d" % idx
             params['SendMessageBatchRequestEntry.%d.MessageBody' % idx] = message
 
@@ -242,7 +244,7 @@ class SQS(AWSService):
             raise AWSError(status, reason, data)
         p = urlparse(queueUrl)
         return request.AWSRequest(self._endpoint, p.path, self._key, self._secret, 'DeleteMessage', {
-            'Version': '2009-02-01',
+            'Version': self.version,
             'ReceiptHandle': receiptHandle,
         }, response)
 
@@ -254,10 +256,11 @@ class SQS(AWSService):
                 return True
             raise AWSError(status, reason, data)
         p = urlparse(queueUrl)
-        params = { 'Version': '2009-02-01', }
+        params = { 'Version': self.version, }
         for idx, receipt in enumerate(receiptHandleList):
+            idx += 1 # Ids start from 1
             params["DeleteMessageBatchRequestEntry.%d.Id" % idx ] = "msg%d" % idx
-            params["DeleteMessageBatchRequestEntry.%d.ReceiptHandle" % idx ] = recepit
+            params["DeleteMessageBatchRequestEntry.%d.ReceiptHandle" % idx ] = receipt
         return request.AWSRequest(self._endpoint, p.path, self._key, self._secret, 'DeleteMessageBatch', params, response)
 
     def AddPermission(self, queueUrl, Label, Permissions):
@@ -359,7 +362,6 @@ class SQS(AWSService):
 
         def response(status, reason, data):
             if status == 200:
-#                               print data
                 root = ET.fromstring(data)
                 attributes = {}
                 for node in root.findall('.//{%s}Attribute' % self.xmlns):
@@ -437,18 +439,21 @@ class SQS(AWSService):
 
 if __name__ == '__main__':
     key, secret = getBotoCredentials()
+    request.DEBUG = True
     sqs = SQS('us-east-1', key, secret)
-    q = sqs.CreateQueue('aaws-test').GET()
+    q = sqs.CreateQueue('aaws-test').execute()
     print repr(q)
-    print sqs.GetQueueAttributes(q).GET()
-    print sqs.GetQueueAttributes(q, ['QueueArn', 'Policy']).GET()
-    print sqs.SendMessage(q, 'hello world').GET()
-    print sqs.SendMessageBatch(q, ['hello world 1', "hello world2", "test me"] ).GET()
+
+    #print sqs.GetQueueAttributes(q).execute()
+    #print sqs.GetQueueAttributes(q, ['QueueArn', 'Policy']).execute()
+    #print sqs.SendMessage(q, 'hello world').execute()
+    #print sqs.SendMessageBatch(q, ['hello world 1', "hello world2", "test me"] ).execute()
 
     while True:
-        msgs = sqs.ReceiveMessage(q, ['All']).GET()
+        msgs = sqs.ReceiveMessage(q, AttributeNames=['All'],
+                                  MaxNumberOfMessages=10).execute()
         print repr(msgs)
         if len(msgs) == 0:
             break
-        print sqs.DeleteMessage(q, msgs[0]['ReceiptHandle']).GET()
-        print
+        print sqs.DeleteMessageBatch(q, [ msg['ReceiptHandle'] for msg in msgs] ).execute()
+
