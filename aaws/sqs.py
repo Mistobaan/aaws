@@ -219,6 +219,19 @@ class SQS(AWSService):
 			'ReceiptHandle': receiptHandle,
 		}, response)
 
+    def DeleteMessageBatch(self, queueUrl, receiptHandleList):
+		"""The DeleteMessageBatch action deletes the specified message from the specified queue in bulk."""
+
+		def response(status, reason, data):
+			if status == 200:
+				return True
+			raise AWSError(status, reason, data)
+		p = urlparse(queueUrl)
+        params = { 'Version': '2009-02-01', }
+        for idx, receipt in enumerate(receiptHandleList):
+            params["DeleteMessageBatchRequestEntry.%d.Id" % idx ] = "msg%d" % idx
+            params["DeleteMessageBatchRequestEntry.%d.ReceiptHandle" % idx ] = recepit
+		return request.AWSRequest(self._endpoint, p.path, self._key, self._secret, 'DeleteMessageBatch', params, response)
 
 	def AddPermission(self, queueUrl, Label, Permissions):
 		"""The AddPermission action adds a permission to a queue for a specific principal. This allows for sharing access to the queue.
